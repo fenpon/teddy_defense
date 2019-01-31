@@ -1,0 +1,175 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class animation_time_controller : StateMachineBehaviour {
+    //서버와의 동기화를 위해 애니메이션 타이머 콘트롤러를 직접 만들었습니다.
+    //플레이타임 지정하는 알고리즘은 30fps 기준으로 제작했습니다. 애니메이션 제작은 30프레임으로 해주세여
+    // OnStateEnter is called when a transition starts and the state machine starts to evaluate this state
+    public bool is_loop = false;
+    public bool play_time_related = false;
+    protected int frame = 0;
+    protected bool is_action = false;
+    protected bool is_demage = false;
+    protected PhotonView photon_view = null;
+    
+    protected float now_time = 0;
+
+    bool is_fin = false;
+    int prev_ani_type = 0;
+    protected virtual void master_update(Animator animator, AnimatorStateInfo stateInfo, int layerIndex)//마스터 클라이언트 update 상속하여 예외처리할때 쓰세요.
+    {
+
+    }
+
+  
+    
+
+    override public void OnStateEnter(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
+       
+        if (PhotonNetwork.isMasterClient)//애니메이션 끝나고 플레이 타임 0으로 교체함.
+        {
+         
+            is_fin = false;
+            animator.SetFloat("play_time", 0);
+            now_time = 0;
+            frame = 0;
+            is_action = false;
+            is_demage = false;
+            prev_ani_type = animator.GetInteger("ani_type");
+            // current_animation_time_gap = stateInfo.length / 30;
+
+        }
+     
+    }
+    
+    // OnStateUpdate is called on each Update frame between OnStateEnter and OnStateExit callbacks
+    
+    override public void OnStateUpdate(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
+
+        if (PhotonNetwork.isMasterClient)//애니메이션 끝나고 플레이 타임 0으로 교체함.
+        {
+
+            // if(!stateInfo.IsName("Idle"))
+            //{
+            //Debug.Log("frame : " + frame);
+            //}
+
+            master_update(animator, stateInfo, layerIndex);
+
+            if (now_time >= 1f)
+            {
+                if (is_loop) 
+                {
+                    //stateInfo.normalizedTime
+                    //if (!stateInfo.IsName("Idle"))
+                    //{
+                       // Debug.Log("end");
+                    //}
+                    animator.SetFloat("play_time", 0);
+                    now_time = 0;
+                    frame = 0;
+                    is_action = false;
+                    is_demage = false;
+                }
+                else
+                {
+                    if (!is_fin)
+                    {
+                        is_fin = true;
+                        //animator.SetTrigger("wait");
+                        if (animator.gameObject.GetComponent<enemy_ai>() != null)
+                        {
+                            animator.gameObject.GetComponent<enemy_ai>().ani_pose_fin();
+                        }
+                        else if (animator.gameObject.GetComponent<NPC_play_default_system>() != null)
+                        {
+                            animator.gameObject.GetComponent<NPC_play_default_system>().ani_pose_fin();
+                        }
+                    }
+                }
+
+
+            }
+            else
+            {
+                if (play_time_related)
+                {
+                    if (  animator.gameObject.GetComponent<NPC_play_default_system>()  != null)
+                    {
+                      
+                        now_time += (1f  / animator.gameObject.GetComponent<NPC_play_default_system>().get_now_ani_total_time() ) * Time.deltaTime;
+                        //이값들은 예제입니다.
+                        //(1 / 2[애니메이션 시간 총길이를 변조할 값 여기서 2초 == 60 fps] )*0.03333333333[30fps 기준 1틱 델타타임]) = 예시 정답 0.01666666666
+                        //일반 애니메이션은 밑의 코드로 실행하면 애니메이션의 플레임이 나옵니다.
+                        //1  / now_time 하면 전체 프레임이 나옵니다. 1로 정규화하였기때문입니다. 
+                        //시간 별로 실행되는 애니메이션은 이 라인으로 넘기세요 실행시간을 지정하여 할수있습니다.(공격 모션등의 판정은 이 라인이 좋습니다.)
+
+                        animator.SetFloat("play_time", now_time);
+                    }
+                    else if (animator.gameObject.GetComponent<enemy_ai>() != null)
+                    {
+
+                        now_time += (1f / animator.gameObject.GetComponent<enemy_ai>().get_now_ani_total_time()) * Time.deltaTime;
+                        //이값들은 예제입니다.
+                        //(1 / 2[애니메이션 시간 총길이를 변조할 값 여기서 2초 == 60 fps] )*0.03333333333[30fps 기준 1틱 델타타임]) = 예시 정답 0.01666666666
+                        //일반 애니메이션은 밑의 코드로 실행하면 애니메이션의 플레임이 나옵니다.
+                        //1  / now_time 하면 전체 프레임이 나옵니다. 1로 정규화하였기때문입니다. 
+                        //시간 별로 실행되는 애니메이션은 이 라인으로 넘기세요 실행시간을 지정하여 할수있습니다.(공격 모션등의 판정은 이 라인이 좋습니다.)
+
+                        animator.SetFloat("play_time", now_time);
+                    }
+                }
+                else
+                {
+                   
+                    now_time += (1f / stateInfo.length) * Time.deltaTime;
+                    //(1( 1로 정규화 ) / 1.5[애니메이션 시간 총길이 == 45fps])*(0.03333333333[30fps 기준 1틱 델타타임]) = 1프레임 별 정규화된 델타 타임값 = 예시의 닶은 0.02222222222
+                    //1/0.02222222222 = 45fps = 1.5length
+
+                    animator.SetFloat("play_time", now_time);
+                    
+                }
+                if (animator.gameObject.GetComponent<NPC_play_default_system>() != null)
+                {
+                    //if(animator.gameObject.GetComponent<NPC_play_default_system>().get_photonView().viewID == 1001)
+                        //Debug.LogWarning("fps : " + frame);
+                }
+                frame++;
+
+            }
+           
+        }
+       
+
+    }
+
+    // OnStateExit is called when a transition ends and the state machine finishes evaluating this state
+    override public void OnStateExit(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
+        //
+        // animator.GetFloat("play_time");
+        if(PhotonNetwork.isMasterClient)//애니메이션 끝나고 플레이 타임 0으로 교체함.
+        {
+
+           
+            is_action = false;
+            is_demage = false;
+            animator.SetFloat("play_time", 0);
+            now_time = 0;
+            frame = 0;
+        }
+       
+      
+    }
+
+    // OnStateMove is called right after Animator.OnAnimatorMove(). Code that processes and affects root motion should be implemented here
+   // override public void OnStateMove(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
+        //
+     
+  //  }
+
+    // OnStateIK is called right after Animator.OnAnimatorIK(). Code that sets up animation IK (inverse kinematics) should be implemented here.
+    //override public void OnStateIK(Animator animator, AnimatorStateInfo stateInfo, int layerIndex) {
+    //
+    //}
+}
