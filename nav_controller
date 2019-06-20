@@ -1,0 +1,343 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+
+public class nav_controller : MonoBehaviour {
+    
+    public class List_of_visiting_the_broking_path_wrap_list
+    {
+        public int index;
+        public Path p;
+        public List_of_visiting_the_broking_path_wrap_list(int ln,Path p_ln)
+        {
+            index = ln;
+            p = p_ln;
+        }
+        public List_of_visiting_the_broking_path_wrap_list()
+        {
+           
+        }
+    };
+    /*
+    public class List_of_visiting_the_broking_path_wrap
+    {
+
+        public Dictionary<int, List_of_visiting_the_broking_path_wrap_list> _list = new Dictionary<int, List_of_visiting_the_broking_path_wrap_list>();
+        Path P;
+
+        public Path get_path()
+        {
+            return P;
+        }
+        public List_of_visiting_the_path_wrap(Path p_ln,Path child_p_ln)
+        {
+            // _list[p_ln.index] = ln;
+         
+            _list.Add(child_p_ln.index,new List_of_visiting_the_broking_path_wrap_list(child_p_ln.used_path) );
+            
+            
+            P = p_ln;
+        }
+    };
+    */
+    public  path_finder _path_finder = null;
+    GameObject _tseter, _tseter2 = null;
+    private void Awake()
+    {
+        _tseter = (GameObject)Resources.Load("Navigator/Prefabs/test");
+        _tseter2 = (GameObject)Resources.Load("Navigator/Prefabs/test2");
+        //_path_finder = GameObject.FindObjectsOfType<path_finder>(); 
+    }
+    // Use this for initialization
+    void Start () {
+        if (_path_finder == null)
+        {
+            Debug.LogError(" please set path_finder");
+        }
+    }
+	
+	// Update is called once per frame
+    
+	void Update () {
+        if (Input.GetMouseButtonDown(0))
+        {
+            //Input.mousePosition
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            RaycastHit hit;
+            if (Physics.Raycast(ray,out hit))
+            {
+                //hit.point;
+                if(_path_finder != null)
+                {
+                    _path_finder.Get_Path(this.transform.position , hit.point, this.GetComponent<nav_controller>() );
+                }
+                else
+                {
+                    Debug.LogError(" please set path_finder");
+                }
+            }
+        }
+        Gate_path_up();
+
+
+    }
+    bool is_path_find = false;
+    List<int> final_path_index = null;
+    int least_path_find_weight_in_destination = -1;
+
+    public class weight_wrap
+    {
+        public int total_w;
+        public int spare_distance;
+        public int index;
+    };
+    Dictionary<int, weight_wrap> least_path_find_weight;
+    int start_height = -1;
+    int destination_height = -1;
+    int start_width = -1;
+    int destination_width = -1;
+    int loop = 0;
+    bool is_big_to_start = false;
+
+    List<Path> _stack_index = null;
+    Dictionary<int, Path> already_opened_stack_index = null;
+    Dictionary<int, bool> have_obstacle = null;
+
+    List<Path> List_of_path_unable = null;
+ 
+    int t_loop =0;
+
+    int _des = -1;
+    int _s = -1;
+    public void Gat_path(int _start_, int _destination_)
+    {
+
+        is_path_find = false;
+        
+
+        final_path_index = new List<int>();//최종 최단 경로들의 지점들을 저장한 변수
+
+
+        least_path_find_weight = new Dictionary<int, weight_wrap>(); // 최단 경로 찾는 f(x)의 값 (A* 알고리즘)
+       
+        final_path_index.Clear();
+        least_path_find_weight.Clear();
+        least_path_find_weight_in_destination = -1;
+
+        _s = _start_;
+        _des = _destination_;
+
+        Debug.Log(" a : " + _s + " : " + _des);
+
+        start_height = _s / _path_finder.x;//시작 높이 y 
+        destination_height = _des / _path_finder.x; //목적지 높이 y 
+
+        start_width = _s % _path_finder.x;//시작 너비 x
+        destination_width = _des % _path_finder.x; //목적지 너비 x
+
+        /*
+        int Hypotenuse = (int)Mathf.Sqrt(
+            Mathf.Pow( (start_width - destination_width), 2 ) + Mathf.Pow( (start_height - destination_height), 2 )  
+        );
+
+        least_path_find_weight = Hypotenuse + 100;
+        */
+
+        is_big_to_start = (start_height > destination_height);//스타트 높이 지점이 목적지 높이보다 큰지
+
+        Path_data _now = _path_finder.Read_location_arr_in_binary(_s);
+        Debug.Log("_now : " + _now);
+
+        _stack_index = new List<Path>();//깊이 우선 탐색용 큐 // A*알고리즘실행할때 쓴다.
+        //stack_related_to_the_level = new List<Path>();//레벨마다 최소비용을 구해서 최소비용으로 최단거리를 계산하기 위해 저장되는 큐
+        List<int> used_p = new List<int>();
+        List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 // 예외처리 
+                                               //completed_List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 처리완료한 리스트 // 예외처리 
+        already_opened_stack_index = new Dictionary<int, Path>();
+        have_obstacle = new Dictionary<int, bool>();
+
+
+        used_p.Add(_now.get_index());
+
+
+        Path _Path = new Path(_now.get_index(), 0, used_p);
+        already_opened_stack_index.Add(_Path.index, _Path);
+        
+
+        _stack_index.Add(_Path);
+        
+
+
+        Vector3 V = _path_finder.Read_location_arr_in_binary(_s).get_pos();
+        Vector3 vvv = V;
+        vvv.y += 2;
+        Debug.DrawLine(V, vvv, Color.green, 0.5f);
+
+        Vector3 V2 = _path_finder.Read_location_arr_in_binary(_des).get_pos();
+        Vector3 vvv2 = V2;
+        vvv2.y += 2;
+        Debug.DrawLine(V2, vvv2, Color.cyan, 0.5f);
+
+        //final_path = null;
+        t_loop = 0;
+        is_path_find = true;
+    }
+  
+    public void Gate_path_up()
+    {
+
+        int loop = 0;
+
+
+        if (is_path_find)
+        {
+            while (loop < 4)
+            {
+
+
+                if (_stack_index.Count > 0)
+                {
+
+                    loop++;
+                    t_loop++;
+                    _stack_index.Sort(//삽입정렬 n^2 개선 필요 //시작시 계산시간이 많이 걸리는데 확인
+                        delegate (Path p1, Path p2)
+                        {
+                            /*
+                            if (p1.total_w == p2.total_w)
+                            {
+                                return p1.distance.CompareTo(p2.distance);//낮은 순 정렬
+                            }
+                            else
+                            {
+                                return p1.total_w.CompareTo(p2.total_w);//낮은 순 정렬
+                            }
+                            */
+                            return p1.distance.CompareTo(p2.distance);//낮은 순 정렬
+                        }
+                    );
+
+                    Path p = _stack_index[0];
+                    _stack_index.RemoveAt(0);
+
+                    //Debug.Log("p : " + p.index + " W : " + p.total_w);
+                    
+                    Vector3 vv2 = _path_finder.Read_location_arr_in_binary(p.index).get_pos();
+                    Vector3 vv1 = vv2;
+                    vv2.y += 0.1f;
+                    Debug.DrawLine(vv1, vv2, Color.red, 3f);
+
+                    int must_low_of_path_w = 0;
+          
+                    List<int> child_index_list = new List<int>();
+                    //have_obstacle
+                    if (_path_finder.Read_location_arr_in_binary(p.index) != null)
+                    {
+                       
+
+
+
+                            //have_obstacle.ContainsKey(p.index)
+                            foreach (link child_link in _path_finder.Read_location_arr_in_binary(p.index).get_linking())
+                            {
+                                int now_height = child_link.get_index() / _path_finder.x;
+                                int now_width = child_link.get_index() % _path_finder.x;
+                                int distance = ( Mathf.Abs(now_width - destination_width) + Mathf.Abs(now_height - destination_height) )*10;//목적지 까지 남은 거리
+
+                                int sum = (p.sum + child_link.get_weight());
+                                int total_weight = sum + distance;// A* 알고리즘의 핵심인 f(x) = g(x)+h(x)
+
+                                if (_path_finder.Read_location_arr_in_binary(child_link.get_index()) != null)
+                                {
+
+                                    
+                                    List<int> _used_path = new List<int>(p.used_path.ToArray());
+
+                                    _used_path.Add(child_link.get_index());
+                                    Path child = new Path(child_link.get_index(), total_weight, _used_path, distance, sum);
+
+
+                                    if (child.index == _des)
+                                    {
+                                        final_path_index = child.used_path;
+                                        //Debug.LogWarning("도착 : " + final_path_index.Count);
+                                        _stack_index.Clear();
+                                        is_path_find = false;
+                                        break;
+                                    }
+                                    else
+                                    {
+                                        if (!already_opened_stack_index.ContainsKey(child.index))
+                                        {
+                                           
+                                            child_index_list.Add(child.index);
+                                            already_opened_stack_index.Add(child.index, child);
+                                            _stack_index.Add(child);
+                                        }
+
+                                    }
+                                    
+                                }
+                                else
+                                {
+
+                                   
+
+                                }
+
+                            }
+
+
+                        
+                       
+
+                    }
+
+
+
+
+                }
+
+                else
+                {
+                    break;
+                }
+
+            }
+        }
+        else
+        {
+
+           
+            if(final_path_index != null)
+            {
+                if(final_path_index.Count > 0)
+                { 
+                   // Debug.Log(" Get_path Fin : "+loop);
+                    for (int i = 0; i < final_path_index.Count; ++i)
+                    {
+
+                        Debug.Log(" 결과 : " + final_path_index[i]);
+                        if (i > 0)
+                        {
+                            Vector3 vv1 = _path_finder.Read_location_arr_in_binary(final_path_index[i - 1]).get_pos();
+                            vv1.y += 0.1f;
+
+                            Vector3 vv2 = _path_finder.Read_location_arr_in_binary(final_path_index[i]).get_pos();
+                            vv2.y += 0.1f;
+                            Debug.DrawLine(vv1, vv2, Color.red, 1f);
+                        }
+
+                    }
+                    Debug.Log("loop : " + t_loop);
+                    final_path_index.Clear();
+                }
+            }
+          
+        }
+      
+        
+        
+    }
+    
+}
