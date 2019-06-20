@@ -1,0 +1,52 @@
+
+
+
+#pragma kernel mapping_seed_calc
+
+
+struct gpu_data_wrap
+{
+   
+    int index;   
+    float x;
+    float y;
+    uint file_index;
+    bool is_calc_fin;
+};
+
+RWStructuredBuffer<gpu_data_wrap> Data;
+
+
+// Three vertices define a triangle in space
+uint xx;
+uint yy;
+float Spacing;
+
+
+uint loop_count;
+uint value_to_cut_by_the_number;
+uint _count;
+
+
+
+[numthreads(50, 20, 1)]
+void mapping_seed_calc(uint3 id : SV_DispatchThreadID)//50, 1, 1 50개의 쓰레드만 연다 50개씩 분활하여 실행 간단한 연산을 GPu에서 병렬 수행후 cpu에서 레이케스팅을 실행한다 레이케스팅을 gPu 측에서 physicX를 불러올수없다.
+{
+    uint now_index = id.xyz;
+    Data[now_index].index = (loop_count * _count) + now_index; //총 프레임 갯수를 곱하여 구한다  
+
+    Data[now_index].file_index = Data[now_index].index / value_to_cut_by_the_number;
+    
+    uint I = Data[now_index].index;
+    uint x_index = (I / xx);
+    uint y_index = (I % xx);
+    Data[now_index].x = x_index * Spacing;
+    Data[now_index].y = y_index * Spacing;
+
+
+
+   
+  
+    Data[now_index].is_calc_fin = true; //계산이 끝났다는걸 알린다.
+    
+}
