@@ -1,0 +1,1460 @@
+using System.Collections;
+using System.Collections.Generic;
+
+using UnityEngine;
+using System.Runtime.Serialization.Formatters.Binary;
+using System.IO;
+
+public class Vector3D//최종 경로들 을 저장 #000
+{
+    Vector3 Pos;
+    int path_index;
+    public Vector3D(Vector3 pos_ln,int path_index_ln)
+    {
+        Pos = pos_ln;
+        path_index = path_index_ln;
+    }
+    public Vector3 Get_Pos()
+    {
+        return Pos;
+    }
+    public int Get_path_index()
+    {
+        return path_index;
+    }
+};
+
+
+
+public class Path  //지점들의 인덱스및 갔다온 지점들을 저장 //#002
+{
+    public int index;
+
+    public int total_w = 0;
+    public int sum = 0;
+
+    public List<int> used_path;
+    public int distance = 0;
+
+    public Path(int index_ln, int w_ln, List<int> _list_ln, int distance_ln = 0, int sum_ln = 0)
+    {
+        index = index_ln;
+        total_w = w_ln;
+        used_path = _list_ln;
+        distance = distance_ln;
+        sum = sum_ln;
+
+    }
+  
+}
+
+[System.Serializable]
+public class link//서로 연결된 path(그래프 자료구조) 끼리 당므 주소와 웨이트값을 저장하는 클래스 #003
+{
+    
+    int index;
+   
+    int w;
+
+    public int get_index()
+    {
+        return index;
+    }
+    public int get_weight()
+    {
+        return w;
+    }
+    public link(int index_ln, int w_ln)
+    {
+        index = index_ln;
+        w = w_ln;
+    }
+    public string to_string()
+    {
+        string str = " link : "+ index + " : " + w+" / ";
+        return str;
+    }
+};
+
+
+[System.Serializable]
+public class Path_data//지점들의 인덱스 및 연결된 지점들, 지점의 실제 위치를 저장하는 핵심 객체이다 //#004
+{
+
+    [System.NonSerialized]
+    Vector3 pos;
+
+    
+    float _vec_x;
+    float _vec_y;
+    float _vec_z;
+
+    public float vec_x { get { return _vec_x; } set { _vec_x = value; } }
+    public float vec_y { get { return _vec_y; } set { _vec_y = value; } }
+    public float vec_z { get { return _vec_z; } set { _vec_z = value; } }
+
+    int index;
+
+   
+    link[] linking = new link[8];//연결된 경로 // 그래프 자료구조
+
+
+ 
+    int height;
+
+    
+
+   
+
+    public Path_data(float x, float y,int index_ln,path_finder _path_finder)
+    {
+        
+        int X = _path_finder.x;
+        int Y = _path_finder.y;
+        
+        pos = new Vector3(x,0,y);
+        vec_x = pos.x;
+        vec_y = pos.y;
+        vec_z = pos.z;
+
+        index = index_ln;
+        int index_limit = X * Y;
+
+       
+        height = index_ln / _path_finder.x;
+        /* index 증가량
+         * +(x-1) +x +(x+1)
+         * -1        +1
+         * -(x+1) -x -(x-1)
+         */
+
+         /*
+           0             위
+         1 n 2      왼쪽      오른쪽
+           3            아 래
+         */
+
+        
+        linking[0] = new link(index + (X - 1), 14);
+        linking[1] = new link(index + (X), 10);
+        linking[2] = new link(index + (X + 1), 14);
+        linking[3] = new link(index - 1, 10);
+        linking[4] = new link(index + 1, 10);
+        linking[5] = new link(index - (X + 1), 14);
+        linking[6] = new link(index - (X), 10);
+        linking[7] = new link(index - (X - 1), 14);
+
+        if ((index % X) == X - 1)//오른쪽 젤 끝
+        {
+            //linking[2] = null;
+            linking[2] = null;
+           // linking[7] = null;
+
+        }
+        else if( (index % X) == 0 )//왼쪽 젤끝
+        {
+            //linking[0] = null;
+            linking[1] = null;
+           // linking[5] = null;
+        }
+        
+        
+        if( (int)(index / Y) == (Y - 1))//제일 위
+        {
+            //linking[0] = null;
+            linking[0] = null;
+            //linking[2] = null;
+        }
+        else if ((int)(index / Y) == 0)//제일 아래
+        {
+           // linking[5] = null;
+            linking[3] = null;
+            //linking[7] = null;
+        }
+        
+        
+        //weight = { new link(14), 10,14,10,10,14,10,14};
+    }
+
+  
+    public int get_height()
+    {
+        return height;
+    }
+
+
+    public void set_height(float z_ln)
+    {
+        pos.y = z_ln;
+        vec_y = pos.y;
+    }
+    void set_pos(Vector3 ln)
+    {
+        pos = ln;
+        vec_x = pos.x;
+        vec_y = pos.y;
+        vec_z = pos.z;
+    }
+    public void set_pos_after_binary_read()//바이너리 파일에서 읽어낸뒤 pos에 벡터 설정하기
+    {
+        pos = new Vector3(vec_x, vec_y, vec_z);
+    }
+    public Vector3 get_pos()
+    {
+        return pos;
+    }
+    public link[] get_linking()
+    {
+        return linking;
+    }
+    public int get_index()
+    {
+        return index;
+    }
+    public string to_string()
+    {
+        string str = null;
+        str = pos.ToString() +" -> ";
+
+        for(int i =0; i< linking.Length; ++i)
+        {
+            if(linking[i] != null)
+            {
+                str += linking[i].to_string();
+            }
+            else
+            {
+                str += " null / ";
+            }
+           
+        }
+
+        return str;
+    }
+    link[] weight;
+    /*
+     * 0 1 2
+     * 3 x 4
+     * 5 6 7
+     */
+};
+
+public class path_finder_sub : UnityEditor.AssetModificationProcessor
+{
+    
+    public static void OnWillSaveAssets(string[] rara)
+    {
+
+        path_finder[] _path_finder_ = GameObject.FindObjectsOfType<path_finder>();
+        foreach(path_finder _now in _path_finder_)
+        {
+            _now.OnWillSaveAssets();
+        }
+           // OnWillSaveAssets
+    }
+}
+
+public class path_finder : MonoBehaviour  
+{
+    
+    private int _start_index;//시작 인덱스
+
+    public int start_index {
+        get { return _start_index; }
+        set { _start_index = value; }
+    }
+
+    private int _destination_index;//목적지 인덱스
+
+    public int destination_index {
+        get {return _destination_index; }
+        set { _destination_index = value; }
+    }
+
+    public float mapping_seed_raycast_length;
+    public  int variance_index;//분산 인덱스 +- variance_index
+
+
+    public  int x;
+    public  int y;
+    public int sub_step; //메인 패스 위에 서브 패스로 보조함
+
+    public float Spacing;//지점 사이 간격 
+
+    public List<int> able_list = new List<int>();
+    public List<int> unable_list = new List<int>();
+
+    public int value_to_cut_by_the_number;//갯수를 기준으로 잘라낼 값
+    public bool is_save_to_json = false;//json형식으로 저장하는지 false 바이너리 파일 true json형식
+
+
+    Dictionary<int, Path_data> _location_arr = new Dictionary<int, Path_data>();
+    public Dictionary<int, Path_data> location_arr { get {return _location_arr; } set { _location_arr = value; } }
+
+    bool is_first_awake;
+
+    public void OnWillSaveAssets()//프로젝트 저장시 호출
+    {
+        Debug.Log("OnWillSaveAssets");
+        save_to_editor_data_in_dinary_file();
+    }
+    public void editor_awake()
+    {
+        if (!is_first_awake)//최초 awake인지
+        {
+            Debug.Log("is_first_awake");
+            execute_rating = 0f;
+            road_to_editor_data_in_dinary_file();
+
+            is_first_awake = true;
+        }
+
+        if (!Application.isPlaying)
+        {
+            
+            Debug.Log("editor_start");
+            //location_arr.Clear();
+
+            is_check_edge = false;
+            is_cooking_map = false;
+
+            execute_rating = 0f;
+        }
+        
+        //_start_index = 214;
+        //_destination_index = 514
+
+
+        //mapping_seed_raycast_length = 1000f;
+        //value_to_cut_by_the_number = 25;
+        //x = 25;
+        //y = 25;
+        //variance_index = 10;
+        //Spacing = 0.5f;//지점 사이 간격 
+        //able_list
+        //unable_list
+    }
+    private void Awake()
+    {
+        Debug.Log("awake");
+        road_to_editor_data_in_dinary_file();
+
+    }
+   
+    public void Debug_Cooking_maping()//쿠킹한 맵 디버그
+    {
+      
+        Debug.Log("-Debug_Cooking_maping-");
+        is_cooking_map = false;
+        Debug_Draw_default_2d_maping();
+        Debug.Log("-Debug_Cooking_maping- fin");
+        
+    }
+
+    List<int> file_index_list = new List<int>();
+    int file_index_list_count = 0;
+
+    public void Debug_Draw_default_2d_maping()//초기 2차원 맵핑 그리기
+    {
+        Debug.Log("-Debug_Draw_default_2d_maping-");
+        file_index_list.Clear();
+        file_index_list_count = 0;
+        
+        string[] file_name_list = System.IO.Directory.GetFiles(Application.dataPath + "/Resources/Navigator/Fenpon_Nav/");
+       
+        foreach (string str in file_name_list)
+        {
+            int is_bin = str.LastIndexOf(".meta");
+            int s = str.LastIndexOf("Map_Seed_");
+           
+            if (is_bin < 0)
+            {
+                if (s >= 0)
+                {
+                    int l = str.LastIndexOf(".");
+                    int _s = s + 9;
+                    string ss = str.Substring(_s, l - _s);
+                    int file_index = int.Parse(ss);
+                    //Debug.Log(file_index);
+                    file_index_list.Add(file_index);
+                }
+            }
+
+        }
+
+        if(file_name_list.Length > 0)
+            Debug_Cooking_maping_update = true;
+
+    }
+
+    public bool Debug_Cooking_maping_update = false;
+
+    public void Debug_Draw_default_2d_maping_update()//초기 2차원 맵핑 그리기 
+    {
+        if (Debug_Cooking_maping_update)
+        {
+           
+                int file_index = file_index_list[file_index_list_count];
+                
+
+
+                foreach (KeyValuePair<int, Path_data> pair in Read_location_arr_in_binary_by_file_index(file_index))
+                {
+                    if (pair.Value != null)
+                    {
+                        //Debug.Log(pair.Key + " : " + pair.Value.to_string());
+                        link[] _linking = pair.Value.get_linking();
+                        foreach (link _link in _linking)
+                        {
+                            if (_link != null)
+                            { 
+                                if (Read_location_arr_in_binary(_link.get_index()) != null)
+                                {
+                                    Vector3 vec = Read_location_arr_in_binary(_link.get_index()).get_pos();
+                                    vec.y += 0.1f;
+                                    Debug.DrawLine(pair.Value.get_pos(), Read_location_arr_in_binary(_link.get_index()).get_pos(), Color.blue, 2.5f);
+                                }
+
+                            }
+                        }
+                    }
+
+
+                    //
+
+
+                }
+
+
+
+               
+            
+            file_index_list_count++;
+            if (file_index_list_count >= file_index_list.Count)
+            {
+                Debug_Cooking_maping_update = false;
+                Debug.Log("-Debug_Draw_default_2d_maping- fin");
+            }
+        }
+     
+       
+    }
+    public int get_vector3_to_index(Vector3 vec)
+    {
+      
+        int x_index = Mathf.RoundToInt(vec.x / Spacing);
+        int y_index = Mathf.RoundToInt(vec.z / Spacing);
+        int result = (x_index * x) + y_index ;
+        return result;
+    }
+
+
+    Dictionary<int, Dictionary<int, Path_data>> data_wrapper = new Dictionary<int, Dictionary<int, Path_data>>();
+  
+
+    Dictionary<int, Path_data> Read_location_arr_in_binary_by_file_index(int file_index)//맵 시드 바이너리 파일에서 읽어오기 file_index 기준으로 //debug용
+    {
+       
+
+        string file_path = Application.dataPath + "/Resources/Navigator/Fenpon_Nav/Map_Seed_" + file_index + ".bin";
+        //Debug.Log("B");
+      
+            //Debug.Log("A");
+            if (File.Exists(file_path))
+            {
+                //Debug.Log("C");
+                BinaryFormatter _BinaryFormatter = new BinaryFormatter();
+                FileStream stream = new FileStream(file_path, FileMode.Open);
+                Dictionary<int, Path_data> result = (Dictionary<int, Path_data>)_BinaryFormatter.Deserialize(stream);
+                //Debug.Log(result.Count);
+                //int Semaphore_count = 0;
+
+                foreach (KeyValuePair<int, Path_data> now in result)
+                {
+                    //Debug.Log(now.Key);
+                    //Debug.Log(now.Key);
+
+
+                    location_arr[now.Key] = now.Value;
+                    location_arr[now.Key].set_pos_after_binary_read();
+                    now.Value.set_pos_after_binary_read();
+
+                }
+                stream.Close();
+
+
+
+
+                
+                return result;
+               
+            }
+            else
+            {
+                //Debug.Log("F");
+                return null;
+            }
+      
+
+
+    }
+    public Path_data Read_location_arr_in_binary(int i)//맵 시드 바이너리 파일에서 읽어오기
+    {
+        int file_index = i / value_to_cut_by_the_number;
+        //Debug.Log("file_index : "+ file_index + " i : "+i);
+        string file_path = Application.dataPath + "/Resources/Navigator/Fenpon_Nav/Map_Seed_" + file_index + ".bin";
+        //Debug.Log("B");
+        if (!location_arr.ContainsKey(i))
+        {
+            //Debug.Log("A");
+            if (File.Exists(file_path))
+            {
+                //Debug.Log("C");
+                BinaryFormatter _BinaryFormatter = new BinaryFormatter();
+                FileStream stream = new FileStream(file_path, FileMode.Open);
+                Dictionary<int, Path_data> result = (Dictionary<int, Path_data>)_BinaryFormatter.Deserialize(stream);
+                //Debug.Log(result.Count);
+                //int Semaphore_count = 0;
+            
+                foreach (KeyValuePair<int, Path_data> now in result)
+                {
+                    //Debug.Log(now.Key);
+                    //Debug.Log(now.Key);
+                    
+                      
+                        location_arr[now.Key] = now.Value;
+                        location_arr[now.Key].set_pos_after_binary_read();
+                    
+
+                }
+                stream.Close();
+
+           
+
+                
+                if (!location_arr.ContainsKey(i))
+                {
+                    //Debug.Log("D");
+                    return null;
+                }
+                else
+                {
+                    //Debug.Log("E");
+                    return location_arr[i];
+                }
+            }
+            else
+            {
+                //Debug.Log("F");
+                return null;
+            }
+        }
+        else
+        {
+           // Debug.Log("G");
+            return location_arr[i];
+        }
+
+
+    }
+
+    
+
+    [System.Serializable]
+    class editor_data
+    {
+        int _start_index;//시작 인덱스
+
+        public int start_index
+        {
+            get { return _start_index; }
+            set { _start_index = value; }
+        }
+
+        int _destination_index;//목적지 인덱스
+
+        public int destination_index
+        {
+            get { return _destination_index; }
+            set { _destination_index = value; }
+        }
+
+        public float mapping_seed_raycast_length;
+        public int variance_index;//분산 인덱스 +- variance_index
+
+
+        public int x;
+        public int y;
+
+        public float Spacing;//지점 사이 간격 
+
+        public List<int> able_list = new List<int>();
+        public List<int> unable_list = new List<int>();
+
+        public int value_to_cut_by_the_number;//갯수를 기준으로 잘라낼 값
+        int _Number_of_Gpu_thread_per_loop;
+        public int Number_of_Gpu_thread_per_loop { get { return _Number_of_Gpu_thread_per_loop; } set { _Number_of_Gpu_thread_per_loop = value; } }
+        public bool is_save_to_json = false;//json형식으로 저장하는지 false 바이너리 파일 true json형식
+        public int sub_step;
+
+
+        //_start_index = 214;
+        //_destination_index = 514
+
+
+        //mapping_seed_raycast_length = 1000f;
+        //value_to_cut_by_the_number = 25;
+        //x = 25;
+        //y = 25;
+        //variance_index = 10;
+        //Spacing = 0.5f;//지점 사이 간격 
+        //able_list
+        //unable_list
+    };//에디터용 변수들 저장용 클래스
+
+    public bool save_to_editor_data_in_dinary_file()//에디터용 변수들 저장하는 함수
+    { 
+        try
+        {
+            
+           
+                string file_path = Application.dataPath + "/Resources/Navigator/editor_data/editor_data.bin";
+
+                editor_data _editor_data = new editor_data();//에디터용 변수 저장영 클래스 생성
+                _editor_data.start_index = start_index;
+                _editor_data.destination_index = destination_index;
+                _editor_data.mapping_seed_raycast_length = mapping_seed_raycast_length;
+                _editor_data.variance_index = variance_index;
+                _editor_data.x = x;
+                _editor_data.y = y;
+                _editor_data.Spacing = Spacing;
+                _editor_data.able_list = able_list;
+                _editor_data.unable_list = unable_list;
+                _editor_data.value_to_cut_by_the_number = value_to_cut_by_the_number;
+                _editor_data.Number_of_Gpu_thread_per_loop = Number_of_Gpu_thread_per_loop;
+                _editor_data.is_save_to_json = is_save_to_json;
+                _editor_data.sub_step = sub_step;
+
+                BinaryFormatter _BinaryFormatter = new BinaryFormatter();
+                FileStream stream = new FileStream(file_path, FileMode.Create);
+                _BinaryFormatter.Serialize(stream, _editor_data);
+                stream.Close();
+
+           
+        }
+        catch (System.Exception ex)
+        {
+            Debug.LogWarning(ex);
+        }
+
+        return true;
+    }
+   
+    public bool road_to_editor_data_in_dinary_file()//에디터용 변수들 불러오는 함수
+    {
+        string file_path = Application.dataPath + "/Resources/Navigator/editor_data/editor_data.bin";
+        //Debug.Log("B");
+
+        //Debug.Log("A");
+        if (File.Exists(file_path))
+        {
+            //Debug.Log("C");
+            BinaryFormatter _BinaryFormatter = new BinaryFormatter();
+            FileStream stream = new FileStream(file_path, FileMode.Open);
+
+            editor_data _editor_data = (editor_data)_BinaryFormatter.Deserialize(stream);
+            start_index = _editor_data.start_index;
+            destination_index = _editor_data.destination_index;
+            mapping_seed_raycast_length = _editor_data.mapping_seed_raycast_length;
+            variance_index = _editor_data.variance_index;
+            x = _editor_data.x;
+            y = _editor_data.y;
+            Spacing = _editor_data.Spacing;
+            able_list = _editor_data.able_list;
+            unable_list = _editor_data.unable_list;
+            value_to_cut_by_the_number = _editor_data.value_to_cut_by_the_number;
+            Number_of_Gpu_thread_per_loop = _editor_data.Number_of_Gpu_thread_per_loop;
+            is_save_to_json = _editor_data.is_save_to_json;
+            sub_step = _editor_data.sub_step;
+
+            //int Semaphore_count = 0;
+
+
+            stream.Close();
+
+
+
+            return true;
+
+         
+
+        }
+        else
+        {
+            //Debug.Log("F");
+            return false;
+        }
+      
+
+        
+    }
+
+
+    public bool save_to_binary_file(int file_index)//다음 file_index 가 되면 이전 데이터를 모두 저장한다..
+    {
+        try
+        {
+            Debug.Log("저장중.. "+ file_index);
+            
+            if(data_wrapper.ContainsKey(file_index))
+            {
+                if (data_wrapper.Count > 0)
+                {
+                    string file_path = Application.dataPath + "/Resources/Navigator/Fenpon_Nav/Map_Seed_" + file_index + ".bin";
+
+                    BinaryFormatter _BinaryFormatter = new BinaryFormatter();
+
+                    FileStream stream = new FileStream(file_path, FileMode.Create);
+                    _BinaryFormatter.Serialize(stream, data_wrapper[file_index]);
+                    stream.Close();
+                    
+                    //data_wrapper.Clear();
+                }
+            }
+            
+        }
+        catch(System.Exception ex)
+        {
+            Debug.LogWarning(ex);
+        }
+       
+        return true;
+    }
+    public bool save_to_binary_file_list_add(int file_index,Path_data data)//맵 시드 바이너리 파일에서 저장 하기 예약 리스트에 넣기
+    {
+       
+        if(!save_file_index_list.Contains(file_index))
+        {
+            save_file_index_list.Add(file_index);
+        }
+        
+      
+
+        if (data_wrapper.ContainsKey(file_index))
+        {
+            //Debug.Log(" : " + data.get_index());
+            Dictionary<int, Path_data> wrapper = data_wrapper[file_index];
+            wrapper.Add(data.get_index(), data);
+            //
+        }
+        else
+        {
+            //Debug.Log("2 : " + data.get_index());
+            Dictionary<int, Path_data> wrapper = new Dictionary<int, Path_data>();
+            wrapper.Add(data.get_index(), data);
+            data_wrapper.Add(file_index, wrapper);
+          
+        }
+    
+         
+        
+
+        return true;
+    }
+
+    public void Cooking_maping_Start()//맵핑
+    {    
+            Cooking_maping();       
+    }
+
+    public float execute_rating = 0f;//실행 시간
+    public bool is_cooking_map = false;
+    int xx = 0;
+    int yy = 0;
+    // public float execute_rating { get {return  _execute_rating; } set { _execute_rating = value; } }
+
+    //gpu 스레드로 넘기는 변수들 저장하는 구조체
+   
+    public struct gpu_data_wrap
+    {
+        public int index;
+        public float x;
+        public float y;
+        public int file_index;
+        public bool is_calc_fin;
+
+
+
+        public static int Size()
+        {
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(gpu_data_wrap)); ;//index + x + y
+            return size;
+        }
+    };
+
+
+    int end_index, total_count;
+    ComputeShader _Gpu_compute = null;
+    int end = 0;
+    int Kernel = 0;
+    public void Cooking_maping()
+    {
+
+            
+            index = 0;
+            xx = 0;
+            yy = 0;
+            execute_rating = 0f;
+            end_index = x * y - 1;
+            total_count = end_index + 1;
+            limit_count = 0;
+           
+            _gpu_data_wrap_list.Clear();
+        
+            save_file_index_list.Clear();
+        
+            data_wrapper.Clear();
+            
+            //Debug.Log(total_count / (float)Number_of_Gpu_thread_per_loop + " : " + total_count);
+            end_gpu_loop_index = (int)Mathf.CeilToInt(total_count / (float)Number_of_Gpu_thread_per_loop);
+
+            total_Gpu_buffer_count = end_gpu_loop_index * Number_of_Gpu_thread_per_loop;
+           
+            _Gpu_compute = (ComputeShader)Resources.Load("Navigator/Gpu_Script/GPU_Calc");
+            
+            Kernel = _Gpu_compute.FindKernel("mapping_seed_calc");
+
+            save_to_editor_data_in_dinary_file();
+
+            loop = 1;
+
+        //gpu 연산 등록
+
+
+
+        //index++;
+
+         is_check_edge = false;
+         is_cooking_map = true;
+       
+        
+    }
+    Dictionary<int,bool> _gpu_data_wrap_list = new Dictionary<int, bool>();
+    int index = 0;
+    int _Number_of_Gpu_thread_per_loop; // 루프 별 gpu 스레드 갯수
+
+    public int Number_of_Gpu_thread_per_loop { get {return _Number_of_Gpu_thread_per_loop; } set { _Number_of_Gpu_thread_per_loop =value; } }
+   
+    int end_gpu_loop_index = 0;//gpu 버퍼 총 몇 파트로 나눠었는지 로직 구현 기준 스레드 기준아님 스레드를 총 몇개로 몇번 나눴는지에서 번에 해당
+
+    int total_Gpu_buffer_count = 0;//gpu 버퍼 총 길이  end_gpu_loop_index * Number_of_Gpu_thread_per_loop
+
+    int limit_count = 0;
+
+    List<int> save_file_index_list = new List<int>();
+
+    public class W//gpu 스레드 좌표 담는 객체
+    {
+        public W(int _x, int _y, int _z)
+        {
+            x = _x;
+            y = _y;
+            z = _z;
+        }
+        public int x;
+        public int y;
+        public int z;
+
+    }
+
+
+    int loop = 1;
+    bool is_check_edge = false;//모서리인지 확인하는 값
+    int execute_type_2_val = 0;
+    List<int> check_edge_list = new List<int>();
+    public void Cooking_maping_update()
+    {
+
+
+
+        if (!is_check_edge)
+        {
+            
+            if (index == 0)
+            {
+                execute_rating = 0f;
+            }
+            else
+            {
+                execute_rating = ((float)limit_count / (float)total_Gpu_buffer_count);
+
+            }
+
+
+            if (loop >= Number_of_Gpu_thread_per_loop || index == 0)
+            {
+
+                Debug.LogWarning("----execute--------" + index);
+
+                //ComputeShader _Gpu_compute_write = (ComputeShader)Resources.Load("Navigator/Gpu_Script/GPU_Calc_" + Number_of_Gpu_thread_per_loop);
+
+                ComputeBuffer _Gpu_Buffer_write = new ComputeBuffer(Number_of_Gpu_thread_per_loop, (gpu_data_wrap.Size()));
+
+                _Gpu_compute.SetInt("xx", x);
+                _Gpu_compute.SetInt("yy", y);
+                _Gpu_compute.SetFloat("Spacing", Spacing);
+
+                _Gpu_compute.SetInt("loop_count", index);
+                _Gpu_compute.SetInt("value_to_cut_by_the_number", value_to_cut_by_the_number);
+                _Gpu_compute.SetInt("_count", Number_of_Gpu_thread_per_loop);
+
+
+                int i = 0;
+                int limit_num = Number_of_Gpu_thread_per_loop;
+
+
+                gpu_data_wrap[] _gpu_data_wrap = new gpu_data_wrap[limit_num];
+                while (i < limit_num)
+                {
+
+                    _gpu_data_wrap[i] = new gpu_data_wrap();
+                    _gpu_data_wrap[i].index = i;
+
+
+                    i++;
+                }
+                _Gpu_Buffer_write.SetData(_gpu_data_wrap);
+
+
+
+                _Gpu_compute.SetBuffer(Kernel, "Data", _Gpu_Buffer_write);
+                //Debug.Log(_gpu_data_wrap.Length);
+
+
+
+                W[] _gpu_thread_list = new W[] { new W(50, 1, 1), new W(10, 10, 1), new W(25, 10, 1), new W(50, 10, 1), new W(50, 20, 1), new W(50, 40, 1), new W(100, 40, 1), new W(200, 40, 1) };
+                //50 - 0
+                //100 - 1
+                //250 - 2
+                //500 - 3
+                //1000 - 4
+                //2000 - 5
+                //4000 - 6
+                //8000 - 7
+                //텍스쳐 2k 4k원리랑 같습니다.
+                int _gpu_thread_index = 0;
+
+                switch (Number_of_Gpu_thread_per_loop)
+                {
+                    case 50:
+                        _gpu_thread_index = 0;
+                        break;
+                    case 100:
+                        _gpu_thread_index = 1;
+                        break;
+                    case 250:
+                        _gpu_thread_index = 2;
+                        break;
+                    case 500:
+                        _gpu_thread_index = 3;
+                        break;
+
+                    case 1000:
+                        _gpu_thread_index = 4;
+                        break;
+                    case 2000:
+                        _gpu_thread_index = 5;
+                        break;
+                    case 4000:
+                        _gpu_thread_index = 6;
+                        break;
+                    case 8000:
+                        _gpu_thread_index = 7;
+                        break;
+
+                }
+
+                //Debug.Log(_gpu_thread_list[_gpu_thread_index].x+" : "+ _gpu_thread_list[_gpu_thread_index].y+" : "+ _gpu_thread_list[_gpu_thread_index].z);
+                _Gpu_compute.Dispatch(Kernel, _gpu_thread_list[_gpu_thread_index].x, _gpu_thread_list[_gpu_thread_index].y, _gpu_thread_list[_gpu_thread_index].z);//50*1*1 = gpu 스레드 갯수
+
+                _Gpu_Buffer_write.Release();
+
+                loop = 1;
+                index++;
+            }
+
+            int range_front = ((index - 1) * Number_of_Gpu_thread_per_loop);
+            int range_back = (index * Number_of_Gpu_thread_per_loop);
+
+            //int end = Number_of_Gpu_thread_per_loop;
+            ComputeBuffer read_Gpu_Buffer = new ComputeBuffer(Number_of_Gpu_thread_per_loop, (gpu_data_wrap.Size()));
+            gpu_data_wrap[] read_gpu_data_wrap;
+
+
+            int read_limit_num = Number_of_Gpu_thread_per_loop;
+
+            read_gpu_data_wrap = new gpu_data_wrap[read_limit_num];
+
+
+            read_Gpu_Buffer.GetData(read_gpu_data_wrap);
+            //Debug.Log(range_back);
+
+            bool pass = true;
+            foreach (gpu_data_wrap _now in read_gpu_data_wrap)
+            {
+
+                if (!_gpu_data_wrap_list.ContainsKey(_now.index))
+                {
+                    // Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                    if (_now.index >= range_front && _now.index < range_back)
+                    {
+                        //Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                        if (_now.is_calc_fin)
+                        {
+
+                            //Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                            Path_data _Path_data = new Path_data(_now.x, _now.y, _now.index, this);
+
+                            _Path_data.set_height(mapping_seed_raycast_length);
+
+                            Vector3 dir = Vector3.down; //this.transform.TransformDirection(Vector3.down);
+
+                            Ray _ray = new Ray(_Path_data.get_pos(), dir);
+                            //Debug.DrawRay(_ray.origin, _ray.direction* mapping_seed_raycast_length, Color.green,0.5f);
+                            RaycastHit[] _hits;
+
+                            _hits = Physics.RaycastAll(_ray, Mathf.Infinity);
+                            if (_hits.Length > 0)
+                            {
+                                //Debug.Log(_hits.Length);
+                                RaycastHit _hit = _hits[0];
+                                if (!unable_list.Contains(_hit.transform.gameObject.layer))
+                                {
+                                    if (able_list.Contains(_hit.transform.gameObject.layer))
+                                    {
+
+                                        _Path_data.set_height(_hit.point.y);
+                                        location_arr[_Path_data.get_index()] = _Path_data;
+                                        check_edge_list.Add(_Path_data.get_index());
+                                        Debug.Log("index : "+_now.index+ " f : "+_now.file_index);
+                                        save_to_binary_file_list_add(_now.file_index, location_arr[_Path_data.get_index()]);
+                                    }
+                                
+                                }
+                              
+
+                            }
+                           
+
+                            _gpu_data_wrap_list.Add(_now.index, true);
+
+                            loop++;
+                            limit_count++;
+                        }
+                    }
+
+
+                }
+
+            }
+            read_Gpu_Buffer.Release();
+
+        }
+        else//모서리 확인하는 기능
+        {
+           
+            
+            int is_check_edge_count = 0;
+
+            while (check_edge_list.Count > 0)
+            {
+
+                is_check_edge_count++;
+                limit_count++;
+                //Debug.Log("모서리 : ");
+                int now_ind = check_edge_list[0];
+                check_edge_list.RemoveAt(0);
+                execute_rating =  (float)limit_count / (float)execute_type_2_val;
+               
+                if (is_check_edge_count < 4)//한루프에 처리 갯수 제한
+                {
+                   
+                    if (location_arr.ContainsKey(now_ind))
+                    {
+                        bool is_edge = false;//모서리인지 판명
+                        Path_data now_data = location_arr[now_ind];
+                        
+                        if (now_data != null)
+                        {
+                            Debug.Log("모서리 판정 : "+ now_data.get_index());
+                            foreach (link _link in now_data.get_linking())
+                            {
+                                
+                                if ( location_arr.ContainsKey( _link.get_index() ))
+                                {
+                                    Path_data child = location_arr[_link.get_index()];
+                                  
+                                    if (child == null)
+                                    {
+                                        
+                                        is_edge = true;
+                                    }
+                                    
+                                }
+                            }
+                            if (!is_edge)//모서리아님
+                            {
+                                location_arr.Remove(now_ind);
+                            }
+                        }
+                        else
+                        {
+
+                        }
+
+                       
+                    }
+
+                }
+                else
+                {
+                    break;
+                }
+
+            }
+            
+        }
+
+        // Debug.Log("C  : "+ _gpu_data_wrap_list.Count);
+        if (execute_rating >= 1)
+        {
+
+            Debug.LogWarning("Fin");
+            
+            
+            _location_arr.Clear();
+            //save_file_index_list
+
+            foreach (int _now_index in save_file_index_list)
+            {
+                save_to_binary_file(_now_index);
+            }
+            
+            if (!is_check_edge)
+            {
+                
+                limit_count = 0;
+                execute_type_2_val = check_edge_list.Count;
+                execute_rating = 0;
+                is_check_edge = true;
+                
+            }
+            else
+            {
+                Debug.Log("마지막 길이 : " + location_arr.Count);
+                Debug.Log("A : "+ execute_type_2_val);
+                _location_arr.Clear();
+                is_cooking_map = false;
+            }
+        }
+         
+    }
+
+
+    public void Get_Path(Vector3 _s, Vector3 _destination,nav_controller nav)
+    {
+        int s_ind = get_vector3_to_index(_s);
+        int destination_ind = get_vector3_to_index(_destination);
+        nav.Gat_path(s_ind, destination_ind);
+    }
+    void Get_path(int _s,int _des) //실질적으로 경로를 구하는 함수
+    {
+       
+            int loop = 0;
+
+            List<int> final_path_index = new List<int>();//최종 최단 경로들의 지점들을 저장한 변수
+
+
+            Dictionary<int, int> least_path_find_weight = new Dictionary<int, int>(); // 최단 경로 찾는 f(x)의 값 (A* 알고리즘)
+            int least_path_find_weight_in_destination = -1;
+            final_path_index.Clear();
+            least_path_find_weight.Clear();
+            least_path_find_weight_in_destination = -1;
+
+
+
+            int start_height = _s / x;//시작 높이 y 
+            int destination_height = _des / x; //목적지 높이 y 
+
+            int start_width = _s % x;//시작 너비 x
+            int destination_width = _des % x; //목적지 너비 x
+
+            /*
+            int Hypotenuse = (int)Mathf.Sqrt(
+                Mathf.Pow( (start_width - destination_width), 2 ) + Mathf.Pow( (start_height - destination_height), 2 )  
+            );
+
+            least_path_find_weight = Hypotenuse + 100;
+            */
+
+            bool is_big_to_start = (start_height > destination_height);//스타트 높이 지점이 목적지 높이보다 큰지
+
+            Path_data _now = Read_location_arr_in_binary(_s);
+
+            Queue<Path> _stack_index = new Queue<Path>();//깊이 우선 탐색용 큐 // A*알고리즘실행할때 쓴다.
+            List<Path> stack_related_to_the_level = new List<Path>();//레벨마다 최소비용을 구해서 최소비용으로 최단거리를 계산하기 위해 저장되는 큐
+            List<int> used_p = new List<int>();
+            used_p.Add(_now.get_index());
+            Path _Path = new Path(_now.get_index(), 0, used_p);
+            _stack_index.Enqueue(_Path);
+
+            Vector3 V = Read_location_arr_in_binary(_s).get_pos();
+            Vector3 vvv = V;
+            vvv.y += 2;
+            Debug.DrawLine(V, vvv, Color.green, 0.5f);
+
+            Vector3 V2 = Read_location_arr_in_binary(_des).get_pos();
+            Vector3 vvv2 = V2;
+            vvv2.y += 2;
+            Debug.DrawLine(V2, vvv2, Color.cyan, 0.5f);
+
+            Debug.Log("start : "+_s+" des : "+_des);
+            while (_stack_index.Count > 0)
+            {
+                Debug.Log("Loop : ");
+                
+                /*
+                if (loop > 500)
+                {
+
+                    break;
+                }
+                loop++;
+                */
+
+                Path p = _stack_index.Dequeue();
+
+
+                Debug.Log(" P : " + p.index + " : " + p.total_w);
+
+                if (Read_location_arr_in_binary(p.index) != null)
+                {
+                    // 부호변경이 있을경우 여기서 수행
+                    bool is_in_range = false;//범위 내에 있는지
+                    if (is_big_to_start)
+                    {
+
+
+                        if (!(Read_location_arr_in_binary(p.index).get_height() < destination_height - variance_index || Read_location_arr_in_binary(p.index).get_height() > start_height + variance_index))
+                        {
+                            is_in_range = true;
+                        }
+                    }
+                    else
+                    {
+
+                        if (!(Read_location_arr_in_binary(p.index).get_height() < start_height - variance_index || Read_location_arr_in_binary(p.index).get_height() > destination_height + variance_index))
+                        {
+                            is_in_range = true;
+                        }
+                    }
+
+                    if (is_in_range)
+                    {
+                        foreach (link _link in Read_location_arr_in_binary(p.index).get_linking())
+                        {
+                            if (_link != null)
+                            {
+
+                                
+                                if (!p.used_path.Contains(_link.get_index()))
+                                {
+                                    /*
+                                     foreach (int ele in p.used_path)
+                                     {
+                                         Debug.Log(" _link : " + _link.get_index()+" index : " + ele);
+                                     }
+                                     */
+
+                                    int sum = p.total_w + _link.get_weight(); // A* 알고리즘의 핵심인 f(x) = g(x)+h(x)
+
+                                    List<int> used_p_mem = new List<int>();
+
+                                    foreach (int parent in p.used_path)
+                                    {
+                                        used_p_mem.Add(parent);
+                                    }
+
+                                    used_p_mem.Add(_link.get_index());
+
+                                    int check_weight_loop = (used_p_mem.Count % 2);
+
+                                    Path _P = new Path(_link.get_index(), sum, used_p_mem);
+                               
+                                    
+
+                                   
+                                    if (check_weight_loop == 0)//sum < least_path_find_weight || least_path_find_weight == -1) //구해온 최단 거리와 비교해서 더 작은 weight 값이오면 신규 최단 거리 인정.
+                                    {
+                                        
+                                        int now_height = _P.index / x;
+                                        int now_width = _P.index % x;
+                                        int spare_distance = Mathf.Abs(now_width - destination_width)+ Mathf.Abs(now_height - destination_height);//목적지 까지 남은 거리
+
+                                        int total_weight = sum+spare_distance;
+
+                                        int outer;
+
+                                        int now_index = used_p_mem.Count / 2;
+                                        bool is_setting_least_path_find_weight = least_path_find_weight.ContainsKey(now_index);
+
+                                        if (!is_setting_least_path_find_weight)
+                                        {
+                                            least_path_find_weight.Add(now_index, -1);
+                                        }
+                                      
+                                        least_path_find_weight.TryGetValue(now_index, out outer);
+
+                                        if (total_weight < outer || !is_setting_least_path_find_weight)
+                                        {
+                                            least_path_find_weight[now_index] = total_weight;
+
+                                            
+                                            
+
+                                            //Debug.Log("least_path_find_weight : " + _P.index + " : " + check_weight_loop + " :" + least_path_find_weight[now_index] + " now_index : " + now_index + " total_weight : " + total_weight);
+
+
+                                            if (_P.index == _des)
+                                            {
+                                                //least_path_find_weight = sum;//이건 정답
+                                                if(sum  < least_path_find_weight_in_destination  || least_path_find_weight_in_destination == -1)
+                                                {
+                                                    Debug.Log("------------도착--------------------0 : " + now_index);
+                                                    least_path_find_weight_in_destination = sum;
+                                                    final_path_index.Clear();
+                                                    final_path_index = _P.used_path;
+                                                }
+                                             
+                                            }
+                                            else
+                                            {
+                                               
+                                                stack_related_to_the_level.Add(_P);
+                                                //_stack_index.Enqueue(_P);
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (_P.index == _des)
+                                            {
+                                                if (sum < least_path_find_weight_in_destination || least_path_find_weight_in_destination == -1)
+                                                {
+                                                    Debug.Log("------------도착--------------------1 : " + now_index);
+                                                    least_path_find_weight_in_destination = sum;
+                                                    final_path_index.Clear();
+                                                    final_path_index = _P.used_path;
+                                                }
+                                            }
+                                        }
+                                       
+                                    }
+                                    else
+                                    {
+                                        if (_P.index == _des)
+                                        {
+                                            if (sum < least_path_find_weight_in_destination || least_path_find_weight_in_destination == -1)
+                                            {
+                                                int now_index = used_p_mem.Count / 2;
+                                                Debug.Log("------------도착--------------------2 : " + now_index);
+                                                least_path_find_weight_in_destination = sum;
+                                                final_path_index.Clear();
+                                                final_path_index = _P.used_path;
+                                            }
+                                        }
+                                        else
+                                        {
+                                            _stack_index.Enqueue(_P);
+                                        }
+                                    }
+                                       
+                                       // least_path_find_weight = sum;
+                                      
+                                    
+
+
+                                }
+
+                            }
+                        }
+
+                    }
+
+                    if(_stack_index.Count <= 0)
+                    {
+
+                        if (stack_related_to_the_level.Count > 0)
+                        {
+                           // Debug.Log("level one fin : "+ stack_related_to_the_level[stack_related_to_the_level.Count - 1].index);
+                            _stack_index.Enqueue(stack_related_to_the_level[stack_related_to_the_level.Count - 1]);
+                            stack_related_to_the_level.Clear();//가는 도중 막혔을때 예외처리 해줘야함 .
+                            /*
+                            foreach (Path pp in stack_related_to_the_level)
+                            {
+                                Debug.Log("pp : " + pp.index);
+                            }
+                            */
+                        }
+                    }
+
+                }
+
+                Debug.Log("Loop / ");
+            }
+            
+            //List<Path> used_path_list = new List<Path>();
+            //used_path_list.Add(_Path);
+
+            
+
+       
+
+        Debug.Log(" Get_path Fin : " + least_path_find_weight+ " loop : " + loop);
+        
+        for (int i = 0; i < final_path_index.Count; ++i)
+        {
+
+            Debug.Log(" 결과 : " + final_path_index[i]);
+            if(i > 0)
+            {
+                Vector3 vv1 = Read_location_arr_in_binary(final_path_index[i - 1]).get_pos();
+                vv1.y += 0.1f;
+
+                Vector3 vv2 = Read_location_arr_in_binary(final_path_index[i]).get_pos();
+                vv2.y += 0.1f;
+                Debug.DrawLine(vv1, vv2, Color.red, 0.5f);
+            }
+                
+        }
+    }
+    
+
+    public void Debug_Get_path(int _s, int _des)//길찾기 디버깅
+    {
+        
+      
+        Debug.Log("-Debug_Get_path-");
+        Get_path(_s, _des);
+        //start_index
+       
+        //destination_index
+
+    }
+   
+}
+
+
+
