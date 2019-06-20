@@ -183,15 +183,15 @@ public class nav_controller : MonoBehaviour {
         is_path_find = true;
     }
   
-    public void Gate_path_up()
-    {
+    public void Gate_path_up()//100*100  테스트  PC 데스크탑  cpu intel(R) Core(TM) i7-6700 3.40ghz , Ram : 32GB  딜레이 
+    {//cpu 밴치마크 점수 10003 // 출처 https://www.cpubenchmark.net/
 
         int loop = 0;
 
 
         if (is_path_find)
         {
-            while (loop < 4)
+            while (loop < 10)
             {
 
 
@@ -304,6 +304,7 @@ public class nav_controller : MonoBehaviour {
                 }
 
             }
+           
         }
         else
         {
