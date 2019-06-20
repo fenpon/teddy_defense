@@ -1,0 +1,359 @@
+using System.Collections;
+using System.Collections.Generic;
+
+using UnityEngine;
+using UnityEditor;
+
+[CustomEditor(typeof(path_finder))]
+public class path_finder_editor : Editor
+{
+    public path_finder_editor()
+    {
+        
+        #if UNITY_EDITOR
+                EditorApplication.update = Editor_update;
+                
+        #endif
+    }
+    class editor_wrap
+    {
+        public int parameter;
+        public string text;
+
+        public editor_wrap(int par,string t)
+        {
+            parameter = par;
+            text = t;
+        }
+    };
+    /*
+    private void OnSceneGUI()
+    {//update
+       //
+    }
+    */
+
+    
+  
+
+
+    private void Awake()
+    {
+        // Debug.Log("Awake");
+        path_finder myTarget = (path_finder)target;
+
+        #if UNITY_EDITOR
+                if (!myTarget.is_cooking_map)
+                {
+                    myTarget.editor_awake();
+                }
+        #endif
+
+    }
+
+    void Editor_update()
+    {
+        path_finder myTarget = (path_finder)target;
+        //Debug.Log("Editor_update");
+        if (myTarget.is_cooking_map)
+        {
+
+            myTarget.Cooking_maping_update();
+           
+        }
+        if (myTarget.Debug_Cooking_maping_update)
+        {
+            myTarget.Debug_Draw_default_2d_maping_update();
+        }
+        
+    }
+
+    public override void OnInspectorGUI()
+    {
+        
+        path_finder myTarget = (path_finder)target;
+
+      
+        /// 알고리즘 실행 기능수행 버튼 들...
+        GUILayout.Space(10);
+        Rect r = (Rect)EditorGUILayout.BeginVertical("Button", GUILayout.Width(250));
+            
+            if (GUI.Button(r, GUIContent.none))
+            {
+                Debug.Log("Cooking_maping executing...");
+                myTarget.Cooking_maping_Start();
+            }
+            GUILayout.Label("cooking path location map!");
+            
+        EditorGUILayout.EndVertical();
+        GUILayout.Space(3);
+
+        GUILayout.Space(3);
+        Rect r2 = (Rect)EditorGUILayout.BeginVertical("Button", GUILayout.Width(250));
+           
+            if (GUI.Button(r2, GUIContent.none))
+            {
+                Debug.Log("Debug_Cooking_maping...");
+                myTarget.Debug_Cooking_maping();
+            }
+            GUILayout.Label("Map Seed Debug!");
+         
+        EditorGUILayout.EndVertical();
+        GUILayout.Space(3);
+
+        GUILayout.Space(3);
+        Rect r3 = (Rect)EditorGUILayout.BeginVertical("Button", GUILayout.Width(250));
+            
+            if (GUI.Button(r3, GUIContent.none))
+            {
+                Debug.Log("Get path....");
+                myTarget.Debug_Get_path(myTarget.start_index, myTarget.destination_index);
+            }
+            GUILayout.Label("Debug Get path!");
+            
+        EditorGUILayout.EndVertical();
+        GUILayout.Space(5);
+
+        Rect rrr = EditorGUILayout.BeginVertical(GUILayout.Width(250)); 
+        
+            EditorGUI.ProgressBar(rrr, myTarget.execute_rating,"rate");
+            GUILayout.Space(18);
+        //EditorGUILayout.Slider(, 0,1);
+        EditorGUILayout.EndVertical();
+
+        /// 설정 값 설정하는 ui들
+        EditorGUILayout.BeginVertical();
+
+            GUILayout.Space(10);
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Debug_destination_index", GUILayout.Width(200));
+                int r4 = EditorGUILayout.IntField( myTarget.destination_index,GUILayout.Width(70));
+                if (r4 != myTarget.destination_index)
+                {
+                    myTarget.destination_index = r4;
+
+                }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Debug_start_index", GUILayout.Width(200));
+                int r4_1 = EditorGUILayout.IntField( myTarget.start_index, GUILayout.Width(70));
+                if (r4_1 != myTarget.start_index)
+                {
+                    Debug.Log("start_index");
+                    myTarget.start_index = r4_1;
+
+                }
+            EditorGUILayout.EndHorizontal();
+        GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("variance_index", GUILayout.Width(200));
+                int r4_2 = EditorGUILayout.IntField(myTarget.variance_index, GUILayout.Width(70));
+                if (r4_2 != myTarget.variance_index)
+                {
+                    myTarget.variance_index = r4_2;
+
+                }
+            EditorGUILayout.EndHorizontal();
+        GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+       
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Index X", GUILayout.Width(200));
+                int r5 = EditorGUILayout.IntField( myTarget.x, GUILayout.Width(70));
+                if (r5 != myTarget.x)
+                {
+                    myTarget.x = r5;
+
+                }
+            EditorGUILayout.EndHorizontal();
+        GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+        EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Index Y", GUILayout.Width(200));
+                int r6 = EditorGUILayout.IntField(myTarget.y, GUILayout.Width(70));
+                if (r6 != myTarget.y)
+                {
+                    myTarget.y = r6;
+
+                }
+            EditorGUILayout.EndHorizontal();
+        GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+        EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("mapping_seed_raycast_length ", GUILayout.Width(200));
+                float r7 = EditorGUILayout.FloatField( myTarget.mapping_seed_raycast_length, GUILayout.Width(70));
+                if (r7 != myTarget.mapping_seed_raycast_length)
+                {
+                    myTarget.mapping_seed_raycast_length = r7;
+
+                }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+            EditorGUILayout.LabelField("Sub Step", GUILayout.Width(200));
+            int r7_1 = EditorGUILayout.IntField(myTarget.sub_step, GUILayout.Width(70));
+            if (r7_1 != myTarget.sub_step)
+            {
+                myTarget.sub_step = r7_1;
+
+            }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Spacing", GUILayout.Width(200));
+                float r8 = EditorGUILayout.FloatField( myTarget.Spacing, GUILayout.Width(70));
+                if (r8 != myTarget.Spacing)
+                {
+                    myTarget.Spacing = r8;
+
+                }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("value_to_cut_by_the_number", GUILayout.Width(200));
+                int r9 = EditorGUILayout.IntField(myTarget.value_to_cut_by_the_number, GUILayout.Width(70));
+                if (r9 != myTarget.value_to_cut_by_the_number)
+                {
+                    myTarget.value_to_cut_by_the_number = r9;
+
+                }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        EditorGUILayout.BeginVertical();
+            GUIStyle _style = new GUIStyle();
+            _style.margin.left = 50;
+            EditorGUILayout.BeginHorizontal();
+                EditorGUILayout.LabelField("Number_of_Gpu_thread_per_loop", GUILayout.Width(200));
+                int r10 = EditorGUILayout.IntPopup( myTarget.Number_of_Gpu_thread_per_loop, new string[] { "50","100","250","500","1000", "2000", "4000","8000" },new int[] { 50,100,250 ,500,1000,2000,4000,8000}, GUILayout.Width(70));
+                if (r10 != myTarget.Number_of_Gpu_thread_per_loop)
+                {
+                    myTarget.Number_of_Gpu_thread_per_loop = r10;
+
+                }
+            EditorGUILayout.EndHorizontal();
+            GUILayout.Space(10);
+        EditorGUILayout.EndVertical();
+
+        //mapping_seed_raycast_length
+
+        EditorGUILayout.BeginVertical("box", GUILayout.Width(250));
+            GUILayout.Label("Set List of Tag to execute Path Finder");
+
+            EditorGUILayout.BeginVertical();
+
+                for (int i =0; i <  myTarget.able_list.Count; ++i)
+                {
+                    EditorGUILayout.BeginHorizontal();
+           
+                        int layer = myTarget.able_list[i];  
+                        int change_layer = EditorGUILayout.LayerField(layer, GUILayout.Width(212), GUILayout.Height(14));
+           
+                        bool delete = GUILayout.Button("X", GUILayout.Width(20), GUILayout.Height(14));
+                        if (change_layer != layer)
+                        {
+                            myTarget.able_list[i] = change_layer;
+                        }
+                        if (delete)//리스트 현재 요소 삭제
+                        {
+                            myTarget.able_list.RemoveAt(i);
+                        }
+                    EditorGUILayout.EndHorizontal();
+                }
+            
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(40), GUILayout.Height(16));
+
+                bool add_able =   GUILayout.Button("+", GUILayout.Width(20), GUILayout.Height(16));
+                bool remove_able = false;
+                if (myTarget.able_list.Count > 0)
+                {
+                    remove_able = GUILayout.Button("-", GUILayout.Width(20), GUILayout.Height(16));
+                }
+                
+                if(add_able)
+                {
+                    myTarget.able_list.Add(0);
+                }
+                if (remove_able)
+                {
+                    myTarget.able_list.RemoveAt(myTarget.able_list.Count - 1);
+                }
+
+            EditorGUILayout.EndHorizontal();
+
+        EditorGUILayout.EndVertical();
+
+
+
+        EditorGUILayout.BeginVertical("box", GUILayout.Width(250));
+                    GUILayout.Label("Set list of tags to exclude from Path finder");
+            
+            EditorGUILayout.BeginVertical();
+                for (int i = 0; i < myTarget.unable_list.Count; ++i)
+                {
+                    EditorGUILayout.BeginHorizontal();
+                        int layer = myTarget.unable_list[i];
+                        int change_layer = EditorGUILayout.LayerField(layer, GUILayout.Width(212), GUILayout.Height(14));
+                        bool delete = GUILayout.Button("X", GUILayout.Width(20), GUILayout.Height(14));
+                        if (change_layer != layer)
+                        {
+                            myTarget.unable_list[i] = change_layer;
+                        }
+                        if(delete)//리스트 현재 요소 삭제
+                        {
+                            myTarget.unable_list.RemoveAt(i);
+                        }
+                    EditorGUILayout.EndHorizontal();
+                }
+            EditorGUILayout.EndVertical();
+
+            EditorGUILayout.BeginHorizontal(GUILayout.Width(40), GUILayout.Height(16));
+
+                    bool add_unable = GUILayout.Button("+", GUILayout.Width(20), GUILayout.Height(16));
+                    bool remove_unable = false;
+                    if (myTarget.unable_list.Count > 0)
+                    {
+                        remove_unable = GUILayout.Button("-", GUILayout.Width(20), GUILayout.Height(16));
+                    }
+
+                    if (add_unable)
+                    {
+                        myTarget.unable_list.Add(0);
+                    }
+                    if (remove_unable)
+                    {
+                        myTarget.unable_list.RemoveAt(myTarget.unable_list.Count - 1);
+                    }
+
+            EditorGUILayout.EndHorizontal();
+        EditorGUILayout.EndVertical();
+
+
+    }
+}
