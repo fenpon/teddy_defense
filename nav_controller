@@ -150,7 +150,7 @@ public class nav_controller : MonoBehaviour {
 
         _stack_index = new List<Path>();//깊이 우선 탐색용 큐 // A*알고리즘실행할때 씁니다.
         //stack_related_to_the_level = new List<Path>();//레벨마다 최소비용을 구해서 최소비용으로 최단거리를 계산하기 위해 저장되는 큐
-        List<int> used_p = new List<int>();
+        List<int> used_p = new List<int>();//현재 path가 들렸던 경로를 저장하는 리스트
         List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 // 예외처리 
                                                //completed_List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 처리완료한 리스트 // 예외처리 
         already_opened_stack_index = new Dictionary<int, Path>();//이미 갔던 지역 저장한 자료구조
