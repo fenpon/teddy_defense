@@ -183,8 +183,8 @@ public class nav_controller : MonoBehaviour {
         is_path_find = true;
     }
   
-    public void Gate_path_up()//100*100  테스트  PC 데스크탑  cpu intel(R) Core(TM) i7-6700 3.40ghz , Ram : 32GB  딜레이 
-    {//cpu 밴치마크 점수 10003 // 출처 https://www.cpubenchmark.net/
+    public void Gate_path_up()//100*100  테스트  PC 데스크탑  cpu intel(R) Core(TM) i7-6700 3.40ghz , Ram : 32GB  딜레이 메인 실행 프레임
+    {
 
         int loop = 0;
 
@@ -200,7 +200,7 @@ public class nav_controller : MonoBehaviour {
 
                     loop++;
                     t_loop++;
-                    _stack_index.Sort(//삽입정렬 n^2 개선 필요 //시작시 계산시간이 많이 걸리는데 확인
+                    _stack_index.Sort(//삽입정렬 n^2 개선 필요 //시작시 계산시간이 많이 걸리는데 확인 //이후에 따른 정렬 알고리즘 도입예정
                         delegate (Path p1, Path p2)
                         {
                             /*
@@ -217,7 +217,7 @@ public class nav_controller : MonoBehaviour {
                         }
                     );
 
-                    Path p = _stack_index[0];
+                    Path p = _stack_index[0];//현재 path
                     _stack_index.RemoveAt(0);
 
                     //Debug.Log("p : " + p.index + " W : " + p.total_w);
@@ -231,7 +231,7 @@ public class nav_controller : MonoBehaviour {
           
                     List<int> child_index_list = new List<int>();
                     //have_obstacle
-                    if (_path_finder.Read_location_arr_in_binary(p.index) != null)
+                    if (_path_finder.Read_location_arr_in_binary(p.index) != null)//바이너리 파일에서 해당 인덱스의 Path들을 불러옴
                     {
                        
 
@@ -245,7 +245,7 @@ public class nav_controller : MonoBehaviour {
                                 int distance = ( Mathf.Abs(now_width - destination_width) + Mathf.Abs(now_height - destination_height) )*10;//목적지 까지 남은 거리
 
                                 int sum = (p.sum + child_link.get_weight());
-                                int total_weight = sum + distance;// A* 알고리즘의 핵심인 f(x) = g(x)+h(x)
+                                int total_weight = sum + distance;// A* 알고리즘의 핵심인 f(x) = g(x)+h(x) 퓨리스틱 함수
 
                                 if (_path_finder.Read_location_arr_in_binary(child_link.get_index()) != null)
                                 {
