@@ -138,23 +138,23 @@ public class nav_controller : MonoBehaviour {
         /*
         int Hypotenuse = (int)Mathf.Sqrt(
             Mathf.Pow( (start_width - destination_width), 2 ) + Mathf.Pow( (start_height - destination_height), 2 )  
-        );
+        );//빗변구하는 공식 피타고라스 공식
 
         least_path_find_weight = Hypotenuse + 100;
         */
 
         is_big_to_start = (start_height > destination_height);//스타트 높이 지점이 목적지 높이보다 큰지
 
-        Path_data _now = _path_finder.Read_location_arr_in_binary(_s);
+        Path_data _now = _path_finder.Read_location_arr_in_binary(_s);//로컬 드라이브에 저장된 지형데이터(바이너리파일)로드 필요한 부분만 로드합니다.
         Debug.Log("_now : " + _now);
 
-        _stack_index = new List<Path>();//깊이 우선 탐색용 큐 // A*알고리즘실행할때 쓴다.
+        _stack_index = new List<Path>();//깊이 우선 탐색용 큐 // A*알고리즘실행할때 씁니다.
         //stack_related_to_the_level = new List<Path>();//레벨마다 최소비용을 구해서 최소비용으로 최단거리를 계산하기 위해 저장되는 큐
         List<int> used_p = new List<int>();
         List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 // 예외처리 
                                                //completed_List_of_path_unable = new List<Path>();//장애물을 만나는 패스 리스트 처리완료한 리스트 // 예외처리 
-        already_opened_stack_index = new Dictionary<int, Path>();
-        have_obstacle = new Dictionary<int, bool>();
+        already_opened_stack_index = new Dictionary<int, Path>();//이미 갔던 지역 저장한 자료구조
+        have_obstacle = new Dictionary<int, bool>();//장애물에 대해 저장된 자료구조
 
 
         used_p.Add(_now.get_index());
