@@ -200,7 +200,7 @@ public class nav_controller : MonoBehaviour {
 
                     loop++;
                     t_loop++;
-                    _stack_index.Sort(//삽입정렬 n^2 개선 필요 //시작시 계산시간이 많이 걸리는데 확인 //이후에 따른 정렬 알고리즘 도입예정
+                    _stack_index.Sort(//이후에 따른 정렬 알고리즘 도입예정
                         delegate (Path p1, Path p2)
                         {
                             /*
