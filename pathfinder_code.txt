@@ -1,181 +1,242 @@
-public void Cooking_maping()
-{
 
-  
-    _Gpu_compute = (ComputeShader)Resources.Load("Navigator/Gpu_Script/GPU_Calc");
+    public void Cooking_maping_Start()//맵핑
+    {    
+            Cooking_maping();       
+    }
 
-    Kernel = _Gpu_compute.FindKernel("ASTAR");
-    //gpu 연산 등록
+    public float execute_rating = 0f;//실행 시간
+    public bool is_cooking_map = false;
+    int xx = 0;
+    int yy = 0;
+    // public float execute_rating { get {return  _execute_rating; } set { _execute_rating = value; } }
 
-    Debug.Log("맵핑시작");
-    int tc = 0;
-    for (int xx = 0; xx < x; ++xx)
+    //gpu 스레드로 넘기는 변수들 저장하는 구조체
+   
+    public struct gpu_data_wrap
     {
-        for (int yy = 0; yy < y; ++yy)
+        public int index;
+        public float x;
+        public float y;
+        public int file_index;
+        public bool is_calc_fin;
+
+
+
+        public static int Size()
         {
-
-            float nx = xx * Spacing;
-            float ny = yy * Spacing;
-            Vector3 dir = Vector3.down;
-            //Debug.DrawLine(new Vector3(nx,3f, ny), new Vector3(nx,6f, ny), Color.green);
-
-            Ray _ray = new Ray(new Vector3(nx, 300f, ny), dir);
-
-            RaycastHit[] _hits;
-
-            //_hits = Physics.RaycastAll(_ray, Mathf.Infinity);
-            int myx = xx % 10;
-            int myy = yy % 10;
-
-            int bx = xx / 10;
-            int by = yy / 10;
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(gpu_data_wrap)); ;//index + x + y
+            return size;
+        }
+    };
 
 
-           
-            
-            int id = ((by * 100) + bx)+1;
-           
-            string tag = bx.ToString() + ":" + by.ToString();
-            if (id == 21)
+    int end_index, total_count;
+    ComputeShader _Gpu_compute = null;
+    int end = 0;
+    int Kernel = 0;
+    public void Cooking_maping()
+    {
+
+      
+        _Gpu_compute = (ComputeShader)Resources.Load("Navigator/Gpu_Script/GPU_Calc");
+
+        Kernel = _Gpu_compute.FindKernel("ASTAR");
+        //gpu 연산 등록
+
+        Debug.Log("맵핑시작");
+        int tc = 0;
+        for (int xx = 0; xx < x; ++xx)
+        {
+            for (int yy = 0; yy < y; ++yy)
             {
-                tc++;
-               // Debug.Log("tc/" + tag);
-            }
-                
-                
-            if (!path_finder.D.ContainsKey(id))
-            {
+
+                float nx = xx * Spacing;
+                float ny = yy * Spacing;
+                Vector3 dir = Vector3.down;
+                //Debug.DrawLine(new Vector3(nx,3f, ny), new Vector3(nx,6f, ny), Color.green);
+
+                Ray _ray = new Ray(new Vector3(nx, 300f, ny), dir);
+
+                RaycastHit[] _hits;
+
+                //_hits = Physics.RaycastAll(_ray, Mathf.Infinity);
+                int myx = xx % 10;
+                int myy = yy % 10;
+
+                int bx = xx / 10;
+                int by = yy / 10;
+
+
                
-                Block B = new Block();
-                B.sx = bx*10* Spacing;
-                B.sy = by*10* Spacing;
-
-              
-
-                B.data = new int[Buf_Size+2];
-                B.pid = new int[Buf_Size + 2];
-                B.pi = new int[Buf_Size + 2];
-                B.uid = id; //path_finder.D.Count+1;
-                B.data[100] = B.uid;
-                B.data[101] = bx;//101
-                B.data[102] = by;//102 
-
-                path_finder.D.Add(id, B);
-           
-            }
-
-            //path_finder.D[tag].data[(myy * 10) + myx] = 0;
-            RaycastHit _hit;
-            if (Physics.Raycast(_ray,out _hit))
-            {
-                //Debug.Log(_hits.Length);
                 
-                
-                //Debug.DrawRay(_ray.origin, _ray.direction * mapping_seed_raycast_length, Color.green, 0.5f);
-                //Debug.DrawLine(new Vector3(_ray.origin.x,0f,  _ray.origin.y), new Vector3(_ray.origin.x, 9f, _ray.origin.y), Color.red);
-                //path_finder.D[id].data[(myy * 10) + myx] = -1;
-                if (!path_finder.use_able.ContainsKey(id))
-                    path_finder.use_able.Add(id, path_finder.D[id]);
-                if (!unable_list.Contains(_hit.transform.gameObject.layer))
-                 {
-                     if (able_list.Contains(_hit.transform.gameObject.layer))
+                int id = ((by * 100) + bx)+1;
+               
+                string tag = bx.ToString() + ":" + by.ToString();
+                if (id == 21)
+                {
+                    tc++;
+                   // Debug.Log("tc/" + tag);
+                }
+                    
+                    
+                if (!path_finder.D.ContainsKey(id))
+                {
+                   
+                    Block B = new Block();
+                    B.sx = bx*10* Spacing;
+                    B.sy = by*10* Spacing;
+
+                  
+
+                    B.data = new int[Buf_Size+2];
+                    B.pid = new int[Buf_Size + 2];
+                    B.pi = new int[Buf_Size + 2];
+                    B.uid = id; //path_finder.D.Count+1;
+                    B.data[100] = B.uid;
+                    B.data[101] = bx;//101
+                    B.data[102] = by;//102 
+
+                    path_finder.D.Add(id, B);
+               
+                }
+
+                //path_finder.D[tag].data[(myy * 10) + myx] = 0;
+                RaycastHit _hit;
+                if (Physics.Raycast(_ray,out _hit))
+                {
+                    //Debug.Log(_hits.Length);
+                    
+                    
+                    //Debug.DrawRay(_ray.origin, _ray.direction * mapping_seed_raycast_length, Color.green, 0.5f);
+                    //Debug.DrawLine(new Vector3(_ray.origin.x,0f,  _ray.origin.y), new Vector3(_ray.origin.x, 9f, _ray.origin.y), Color.red);
+                    //path_finder.D[id].data[(myy * 10) + myx] = -1;
+                    if (!path_finder.use_able.ContainsKey(id))
+                        path_finder.use_able.Add(id, path_finder.D[id]);
+                    if (!unable_list.Contains(_hit.transform.gameObject.layer))
                      {
-                            //Debug.Log(id+"/"+tag+"/"+xx+":"+yy);
-                            //Debug.Log(id);
-                            //Debug.Log(tag);
-                            //Debug.DrawLine(new Vector3(_hit.point.x, _hit.point.y, _hit.point.z), new Vector3(_hit.point.x, _hit.point.y + 5f, _hit.point.z), Color.green,3f);
-                            path_finder.D[id].data[(myy * 10) + myx] = 0;
-                         // D[{ bx,by}] = 0;
+                         if (able_list.Contains(_hit.transform.gameObject.layer))
+                         {
+                                //Debug.Log(id+"/"+tag+"/"+xx+":"+yy);
+                                //Debug.Log(id);
+                                //Debug.Log(tag);
+                                //Debug.DrawLine(new Vector3(_hit.point.x, _hit.point.y, _hit.point.z), new Vector3(_hit.point.x, _hit.point.y + 5f, _hit.point.z), Color.green,3f);
+                                path_finder.D[id].data[(myy * 10) + myx] = 0;
+                             // D[{ bx,by}] = 0;
 
-                         //_Path_data.set_height(_hit.point.y);
-                         //location_arr[_Path_data.get_index()] = _Path_data;
-                         //Debug.Log("index : "+_now.index+ " f : "+_now.file_index);
-                         //save_to_binary_file_list_add(_now.file_index, location_arr[_Path_data.get_index()]);
-                         //블록 100개만듬
+                             //_Path_data.set_height(_hit.point.y);
+                             //location_arr[_Path_data.get_index()] = _Path_data;
+                             //Debug.Log("index : "+_now.index+ " f : "+_now.file_index);
+                             //save_to_binary_file_list_add(_now.file_index, location_arr[_Path_data.get_index()]);
+                             //블록 100개만듬
+                         }
+                         else
+                         {
+                             path_finder.D[id].data[(myy * 10) + myx] = -1;
+                             // location_arr[_now.index] = null;
+                         }
                      }
                      else
                      {
                          path_finder.D[id].data[(myy * 10) + myx] = -1;
                          // location_arr[_now.index] = null;
                      }
-                 }
-                 else
-                 {
-                     path_finder.D[id].data[(myy * 10) + myx] = -1;
-                     // location_arr[_now.index] = null;
-                 }
-                
+                    
+                }
+                else
+                {
+                    path_finder.D[id].data[(myy * 10) + myx] = -1;
+                }
+
             }
-            else
-            {
-                path_finder.D[id].data[(myy * 10) + myx] = -1;
-            }
+        }
+        Debug.Log("tc/" + tc);
+
+        foreach (var now in path_finder.use_able)
+        {
+           // print_block(now.Value);
+        }
+
+
+        _gpu_thread_index = 0;
+        switch (Number_of_Gpu_thread_per_loop)
+        {
+            case 50:
+                _gpu_thread_index = 0;
+                break;
+            case 100:
+                _gpu_thread_index = 1;
+                break;
+            case 250:
+                _gpu_thread_index = 2;
+                break;
+            case 500:
+                _gpu_thread_index = 3;
+                break;
+
+            case 1000:
+                _gpu_thread_index = 4;
+                break;
+            case 2000:
+                _gpu_thread_index = 5;
+                break;
+            case 4000:
+                _gpu_thread_index = 6;
+                break;
+            case 8000:
+                _gpu_thread_index = 7;
+                break;
 
         }
-    }
-    Debug.Log("tc/" + tc);
 
-    foreach (var now in path_finder.use_able)
+        is_cooking_map = true;
+        Debug.Log("맵핑끝");
+
+    }
+    Dictionary<int,bool> _gpu_data_wrap_list = new Dictionary<int, bool>();
+    int index = 0;
+    int _Number_of_Gpu_thread_per_loop; // 루프 별 gpu 스레드 갯수
+
+    public int Number_of_Gpu_thread_per_loop { get {return _Number_of_Gpu_thread_per_loop; } set { _Number_of_Gpu_thread_per_loop =value; } }
+   
+    int end_gpu_loop_index = 0;//gpu 버퍼 총 몇 파트로 나눠었는지 로직 구현 기준 스레드 기준아님 스레드를 총 몇개로 몇번 나눴는지에서 번에 해당
+
+    int total_Gpu_buffer_count = 0;//gpu 버퍼 총 길이  end_gpu_loop_index * Number_of_Gpu_thread_per_loop
+
+    int limit_count = 0;
+
+    List<int> save_file_index_list = new List<int>();
+
+    public class W//gpu 스레드 좌표 담는 객체
     {
-       // print_block(now.Value);
+        public W(int _x, int _y, int _z)
+        {
+            x = _x;
+            y = _y;
+            z = _z;
+        }
+        public int x;
+        public int y;
+        public int z;
+
     }
 
-
-    _gpu_thread_index = 0;
-    switch (Number_of_Gpu_thread_per_loop)
+    struct Block
     {
-        case 50:
-            _gpu_thread_index = 0;
-            break;
-        case 100:
-            _gpu_thread_index = 1;
-            break;
-        case 250:
-            _gpu_thread_index = 2;
-            break;
-        case 500:
-            _gpu_thread_index = 3;
-            break;
-
-        case 1000:
-            _gpu_thread_index = 4;
-            break;
-        case 2000:
-            _gpu_thread_index = 5;
-            break;
-        case 4000:
-            _gpu_thread_index = 6;
-            break;
-        case 8000:
-            _gpu_thread_index = 7;
-            break;
-
-    }
-
-    is_cooking_map = true;
-    Debug.Log("맵핑끝");
-
-}
-
-
-
-struct Block
-{
-   public int uid;
-    public float sx;
-    public float sy;
-  
-    public int[] data; //100
-    public int[] pid; //100
-    public int[] pi; //100
-    public static int Size()
+       public int uid;
+        public float sx;
+        public float sy;
+      
+        public int[] data; //100
+        public int[] pid; //100
+        public int[] pi; //100
+        public static int Size()
+        {
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Block)); ;//index + x + y
+            return size;
+        }
+    };
+    struct Heap//gpu 내부의 우선순위큐 구조체 cpu측면에선 할당만하고 사용안함
     {
-        int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Block)); ;//index + x + y
-        return size;
-    }
-};
-struct Heap//gpu 내부의 우선순위큐 구조체 cpu측면에선 할당만하고 사용안함
-{
         public int w;
         public int x;
         public int y;
@@ -186,9 +247,9 @@ struct Heap//gpu 내부의 우선순위큐 구조체 cpu측면에선 할당만�
             int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Heap)); ;//index + x + y
             return size;
         }
-};
-struct Block_W//block의 정보 저장
-{
+    };
+    struct Block_W//block의 정보 저장
+    {
         public int uid;
         public float sx;
         public float sy;
@@ -197,24 +258,25 @@ struct Block_W//block의 정보 저장
             int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Block_W)); ;//index + x + y
             return size;
         }
-}
-struct Block_Data//Block_W 에서 사이즈 100만큼 추가로 확인해서 실제 좌표업어옴
-{
+    }
+    struct Block_Data//Block_W 에서 사이즈 100만큼 추가로 확인해서 실제 좌표업어옴
+    {
         public int data; //103 //100은 uid // 101은 sx(int) 102는 sy(int)
         public int pid;
         public int pi;
+        public int use;
         public static int Size()
         {
             int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Block_Data)); ;//index + x + y
             return size;
         }
-}
+    }
 
 
 
 
-struct Execute_Info
-{
+    struct Execute_Info
+    {
 
      
         public int fin;
@@ -225,96 +287,613 @@ struct Execute_Info
             int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Execute_Info)); ;//index + x + y
             return size;
         }
-};
-static Dictionary<int, Block> D = new Dictionary<int, Block>();//1000000 
-static Dictionary<string, string> Link = new Dictionary<string, string>();//블록별 경로 연결 정보 저장
-static Dictionary<int, Block> use_able = new Dictionary<int, Block>();//1000000 -> 내부 데이터 합치면 100000000
+    };
+    static Dictionary<int, Block> D = new Dictionary<int, Block>();//1000000 
+    static Dictionary<string, string> Link = new Dictionary<string, string>();//블록별 경로 연결 정보 저장
+    static Dictionary<int, Block> use_able = new Dictionary<int, Block>();//1000000 -> 내부 데이터 합치면 100000000
+    int loop = 1;
 
-
-int[] Get_P(float xx,float yy)
-{
-    int[] res = new int[2];
-    int nx = (int)(xx / Spacing);
-    int ny = (int)(yy / Spacing);
-    res[0] = nx;
-    res[1] = ny;
-    return res;
-}
-int[] Get_Block_P(int xx, int yy)
-{
-    int[] res = new int[2];
-    int nx = xx / (int)10;
-    int ny = yy / (int)10;
-    res[0] = nx;
-    res[1] = ny;
-    return res;
-}
-struct Cel
-{
-    public int uid;
-    public  int w;
-    public int x;
-    public int y;//w x y
-    public int t;//w x y
-    public int pbuid;//이전에 방문한 노드의 블록 uid
-    public int pi;//이전에 방문한 노드의 x (블록 범위안) x y -> 1차원 배열 인덱스로
-    public static int Size()
+    void print_Execute(Execute_Info[] bb)
     {
-        int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Cel)); ;//index + x + y
-        return size;
+        return;
+        //x = 10
+        Debug.Log("Execute_Info:");
+        int py = 0;
+        string sss = "";
+        HashSet<int> mm = new HashSet<int>();
+        for (int i = 1; i < bb.Length; ++i)
+        {
+
+          
+            if (bb[i].fin != 0)
+            {
+                if (!mm.Contains(bb[i].fin))
+                {
+                    mm.Add(bb[i].fin);
+                }
+                else
+                {
+                    Debug.Log("ex : 중복! "+ bb[i].fin);
+                }
+                sss += "["+bb[i].fin.ToString()+":"+ bb[i].x.ToString() + ":"+ bb[i].y.ToString() + "] ";
+       
+               // Debug.Log("-----------------------EX----------------------");
+            }
+
+        }
+        Debug.Log("EX : "+sss);
     }
-};
-struct Finish
-{
-    public int flag;
-    public static int Size()
+    void print_block(Block bb,int des = 0)
     {
-        int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Finish)); ;//index + x + y
-        return size;
+        //x = 10
+
+        //return;
+       //Debug.Log("Block:" + bb.data[101] + ":"+ bb.data[102] + " uid : "+bb.uid);
+     
+
+        int py = -1;
+        string sss = "";
+        List<string> ss = new List<string>();
+        List<bool> none = new List<bool>();
+        for (int i =0; i < bb.data.Length; ++i)
+        {
+           
+
+              
+            float xx = i % 10*Spacing;
+
+            int yi = i / 10;
+            float yy = yi * Spacing;
+
+            if(py != yi)
+            {
+                py = yi;
+                string ssss = "";
+                ss.Add(ssss);
+                none.Add(false);
+               // Debug.Log(sss);
+
+                sss += '\n';
+            }
+            if (i % 103 >= 100)
+            {
+                sss += bb.data[i].ToString() + " ";
+                continue;
+            }
+            if (bb.data[i] == -1 )
+            {
+                Debug.DrawLine(new Vector3(bb.sx + xx, 2f, bb.sy + yy), new Vector3(bb.sx + xx, 3f, bb.sy + yy), Color.red, 3f);
+                if (des <= 1)
+                    sss += bb.data[i].ToString() + " ";
+                else
+                    sss += "[" + bb.pid[i].ToString() + "::" + bb.pi[i].ToString() + "]";
+               // sss += bb.data[i].ToString() + " ";
+            }      
+            else if(bb.data[i] >= 1)
+            {
+                
+                
+                    Debug.DrawLine(new Vector3(bb.sx + xx, 2f, bb.sy + yy), new Vector3(bb.sx + xx, 3f, bb.sy + yy), Color.green, 3f);
+                 
+                    if (des <= 1)
+                        sss += bb.data[i].ToString() + " ";
+                    else
+                        sss += "[" + bb.pid[i].ToString() + "::" + bb.pi[i].ToString() + "]";
+
+
+            }
+            else
+            {
+                none[ss.Count - 1] = true;
+
+                if(des == 1)
+                {
+                    Debug.DrawLine(new Vector3(bb.sx + xx, 2f, bb.sy + yy), new Vector3(bb.sx + xx, 3f, bb.sy + yy), Color.blue, 3f);
+                }
+                else
+                {
+                    Debug.DrawLine(new Vector3(bb.sx + xx,2f, bb.sy + yy), new Vector3(bb.sx + xx, 3f, bb.sy + yy), Color.yellow, 3f);
+                }
+               
+                ss[ss.Count - 1] += bb.data[i].ToString()+" ";
+                sss += bb.data[i].ToString() + " ";
+            }
+                
+        }
+       // Debug.Log("Block ----- : ");
+        //Debug.LogWarning(bb.uid+" = "+ sss);
+
+
     }
-};
+    int[] Get_P(float xx,float yy)
+    {
+        int[] res = new int[2];
+        int nx = (int)(xx / Spacing);
+        int ny = (int)(yy / Spacing);
+        res[0] = nx;
+        res[1] = ny;
+        return res;
+    }
+    int[] Get_Block_P(int xx, int yy)
+    {
+        int[] res = new int[2];
+        int nx = xx / (int)10;
+        int ny = yy / (int)10;
+        res[0] = nx;
+        res[1] = ny;
+        return res;
+    }
+    public void Cooking_maping_update()
+    {
+       
+        /*
+        ComputeBuffer _Gpu_Buffer_write = new ComputeBuffer(Number_of_Gpu_thread_per_loop, ( Block.Size()));
+        //y, x
+        Block[] block_buf = new Block[100];
+        //int sbx = sx / (int)10;//시작 x좌표의 블록 x좌표
+       // int sby = sy / (int)10;//시작 y좌표의 블록 y좌표
+        block_buf[0] = D["0:0"];
+       
+        _Gpu_Buffer_write.SetData(block_buf);
 
-ComputeBuffer _Gpu_Buffer_Finish = null;//결과 찾았는지 확인하는 플래그 전용 버퍼
-ComputeBuffer _Gpu_Buffer_Execute = null;//Execute_info 전용 버퍼
-ComputeBuffer _Gpu_Buffer_P = null;//Path_w 전용 버퍼
-ComputeBuffer _Gpu_Buffer_E = null;//Path_w 전용 버퍼
-ComputeBuffer _Gpu_Buffer_B = null;//Block_W 전용 버퍼
-ComputeBuffer _Gpu_Buffer_BD = null; // Block_Data 전용 버퍼
-ComputeBuffer _GPU_Buffer_arr = null;//Heap
-ComputeBuffer _Gpu_Buffer_outer = null;//heap결과 전용 버퍼
-int[] si;
-int[] ei;
+        // _Gpu_compute.SetBuffer(Kernel, "D", _Gpu_Buffer_write);
+        W[] _gpu_thread_list = new W[] { new W(50, 1, 1), new W(10, 10, 1), new W(25, 10, 1), new W(50, 10, 1), new W(50, 20, 1), new W(50, 40, 1), new W(100, 40, 1), new W(200, 40, 1) };
+        //50 - 0
+        //100 - 1
+        //250 - 2
+        //500 - 3
+        //1000 - 4
+        //2000 - 5
+        //4000 - 6
+        //8000 - 7
+        //텍스쳐 2k 4k원리랑 같습니다.
+        int _gpu_thread_index = 0;
 
-int[] sbi;
-int[] ebi;
-string stag = null;
+        switch (Number_of_Gpu_thread_per_loop)
+        {
+            case 50:
+                _gpu_thread_index = 0;
+                break;
+            case 100:
+                _gpu_thread_index = 1;
+                break;
+            case 250:
+                _gpu_thread_index = 2;
+                break;
+            case 500:
+                _gpu_thread_index = 3;
+                break;
 
-Block_W[] block_buf;
-Cel[]  outer;//101개의 힙에서 4방향을 가져와서하니까
-List<Cel> BGPQ = new List<Cel>();
+            case 1000:
+                _gpu_thread_index = 4;
+                break;
+            case 2000:
+                _gpu_thread_index = 5;
+                break;
+            case 4000:
+                _gpu_thread_index = 6;
+                break;
+            case 8000:
+                _gpu_thread_index = 7;
+                break;
 
-int Get_Uid(int x, int y)
-{
-    int res = 0;
-    int bx = x / 10;
-    int by = y / 10;
+        }
 
+        //Debug.Log(_gpu_thread_list[_gpu_thread_index].x+" : "+ _gpu_thread_list[_gpu_thread_index].y+" : "+ _gpu_thread_list[_gpu_thread_index].z);
+        _Gpu_compute.Dispatch(Kernel, _gpu_thread_list[_gpu_thread_index].x, _gpu_thread_list[_gpu_thread_index].y, _gpu_thread_list[_gpu_thread_index].z);//50*1*1 = gpu 스레드 갯수
 
-    res = ((by * 100) + bx) + 1;
-    return res;
-
-}
-void Clear_BGPQ()
-{
-    BGPQ.Clear();
-    BGPQ.Add(new Cel());
-    BGPQ_Count = BGPQ.Count;
-}
+        _Gpu_Buffer_write.Release();
 
 
+        //gpu 데이터 읽기
+        ComputeBuffer read_Gpu_Buffer = new ComputeBuffer(Number_of_Gpu_thread_per_loop, (gpu_data_wrap.Size()));
+        Block[] read_gpu_data_wrap;
+
+
+        int read_limit_num = Number_of_Gpu_thread_per_loop;
+
+        read_gpu_data_wrap = new Block[read_limit_num];
+
+
+        read_Gpu_Buffer.GetData(read_gpu_data_wrap);
+        //Debug.Log(range_back);
+
+        bool pass = true;
+        foreach (Block _now in read_gpu_data_wrap)
+        {
+            Debug.Log("S:"+_now.sx+":"+_now.sy);
+        }
+
+        */
+
+
+        /*
+        if (index == 0)
+        {
+            execute_rating = 0f;
+        }
+        else
+        {
+            execute_rating = ((float)limit_count / (float)total_Gpu_buffer_count);
+
+        }
+
+        if(loop >= Number_of_Gpu_thread_per_loop || index == 0)
+        {
+           
+            Debug.LogWarning("----execute--------"+ index);
+            
+            //ComputeShader _Gpu_compute_write = (ComputeShader)Resources.Load("Navigator/Gpu_Script/GPU_Calc_" + Number_of_Gpu_thread_per_loop);
+
+            ComputeBuffer _Gpu_Buffer_write = new ComputeBuffer(Number_of_Gpu_thread_per_loop, (gpu_data_wrap.Size()));
+
+            _Gpu_compute.SetInt("xx", x);
+            _Gpu_compute.SetInt("yy", y);
+            _Gpu_compute.SetFloat("Spacing", Spacing);
+
+            _Gpu_compute.SetInt("loop_count", index);
+            _Gpu_compute.SetInt("value_to_cut_by_the_number", value_to_cut_by_the_number);
+            _Gpu_compute.SetInt("_count", Number_of_Gpu_thread_per_loop);
+
+
+            int i = 0;
+            int limit_num = Number_of_Gpu_thread_per_loop;
+       
+           
+                gpu_data_wrap[] _gpu_data_wrap = new gpu_data_wrap[limit_num];
+                while (i < limit_num)
+                {
+
+                    _gpu_data_wrap[i] = new gpu_data_wrap();
+                    _gpu_data_wrap[i].index = i;
+
+
+                    i++;
+                }
+                _Gpu_Buffer_write.SetData(_gpu_data_wrap);
+            
+           
+
+            _Gpu_compute.SetBuffer(Kernel, "Data", _Gpu_Buffer_write);
+            //Debug.Log(_gpu_data_wrap.Length);
+
+           
+
+            W[] _gpu_thread_list = new W[] { new W(50, 1, 1), new W(10, 10, 1), new W(25, 10, 1), new W(50, 10, 1), new W(50, 20, 1) , new W(50, 40, 1), new W(100, 40, 1), new W(200, 40, 1) };
+            //50 - 0
+            //100 - 1
+            //250 - 2
+            //500 - 3
+            //1000 - 4
+            //2000 - 5
+            //4000 - 6
+            //8000 - 7
+            //텍스쳐 2k 4k원리랑 같습니다.
+            int _gpu_thread_index = 0;
+
+            switch (Number_of_Gpu_thread_per_loop)
+            {
+                case 50:
+                    _gpu_thread_index = 0;
+                    break;
+                case 100:
+                    _gpu_thread_index = 1;
+                    break;
+                case 250:
+                    _gpu_thread_index = 2;
+                    break;
+                case 500:
+                    _gpu_thread_index = 3;
+                    break;
+
+                case 1000:
+                    _gpu_thread_index = 4;
+                    break;
+                case 2000:
+                    _gpu_thread_index = 5;
+                    break;
+                case 4000:
+                    _gpu_thread_index = 6;
+                    break;
+                case 8000:
+                    _gpu_thread_index = 7;
+                    break;
+
+            }
+
+            //Debug.Log(_gpu_thread_list[_gpu_thread_index].x+" : "+ _gpu_thread_list[_gpu_thread_index].y+" : "+ _gpu_thread_list[_gpu_thread_index].z);
+            _Gpu_compute.Dispatch(Kernel, _gpu_thread_list[_gpu_thread_index].x, _gpu_thread_list[_gpu_thread_index].y, _gpu_thread_list[_gpu_thread_index].z);//50*1*1 = gpu 스레드 갯수
+
+            _Gpu_Buffer_write.Release();
+
+            loop = 1;
+            index++;
+        }
+
+        int range_front = ((index - 1 )* Number_of_Gpu_thread_per_loop);
+        int range_back = (index * Number_of_Gpu_thread_per_loop);
+
+        //int end = Number_of_Gpu_thread_per_loop;
+        ComputeBuffer read_Gpu_Buffer = new ComputeBuffer(Number_of_Gpu_thread_per_loop, (gpu_data_wrap.Size()));
+        gpu_data_wrap[] read_gpu_data_wrap;
+
+
+        int read_limit_num = Number_of_Gpu_thread_per_loop;
+    
+        read_gpu_data_wrap = new gpu_data_wrap[read_limit_num];
+        
+       
+        read_Gpu_Buffer.GetData(read_gpu_data_wrap);
+        //Debug.Log(range_back);
+
+        bool pass = true;
+        foreach(gpu_data_wrap _now in read_gpu_data_wrap)
+        {
+            
+            if (!_gpu_data_wrap_list.ContainsKey(_now.index))
+            {
+               // Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                if ( _now.index >= range_front && _now.index < range_back)
+                {
+                   //Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                    if (_now.is_calc_fin)
+                    {
+
+                        //Debug.Log(" : " + _now.index + " : " + _now.is_calc_fin);
+
+                        Path_data _Path_data = new Path_data(_now.x, _now.y, _now.index, this);
+
+                        _Path_data.set_height(mapping_seed_raycast_length);
+
+                        Vector3 dir = Vector3.down; //this.transform.TransformDirection(Vector3.down);
+
+                        Ray _ray = new Ray(_Path_data.get_pos(), dir);
+                        //Debug.DrawRay(_ray.origin, _ray.direction* mapping_seed_raycast_length, Color.green,0.5f);
+                        RaycastHit[] _hits;
+
+                        _hits = Physics.RaycastAll(_ray, Mathf.Infinity);
+                        if (_hits.Length > 0)
+                        {
+                            //Debug.Log(_hits.Length);
+                            RaycastHit _hit = _hits[0];
+                            if(!unable_list.Contains(_hit.transform.gameObject.layer))
+                            {
+                                if (able_list.Contains(_hit.transform.gameObject.layer))
+                                {
+                                    
+                                    _Path_data.set_height(_hit.point.y);
+                                    location_arr[_Path_data.get_index()] = _Path_data;
+                                    //Debug.Log("index : "+_now.index+ " f : "+_now.file_index);
+                                    save_to_binary_file_list_add(_now.file_index, location_arr[_Path_data.get_index()]);
+                                }
+                                else
+                                {
+                                    location_arr[_now.index] = null;
+                                }
+                            }
+                            else
+                            {
+                                location_arr[_now.index] = null;
+                            }
+
+                        }
+                        else
+                        {
+                            location_arr[_now.index] = null;
+
+                        }
+
+                        _gpu_data_wrap_list.Add(_now.index, true);
+
+                        loop++;
+                        limit_count++;
+                    }
+                }
+                
+
+            }
+          
+        }
+        read_Gpu_Buffer.Release();
+
+       
+
+        // Debug.Log("C  : "+ _gpu_data_wrap_list.Count);
+        if (execute_rating >= 1)
+        {
+            Debug.LogWarning("Fin");
+            _location_arr.Clear();
+            //save_file_index_list
+            foreach (int _now_index in save_file_index_list)
+            {
+                save_to_binary_file(_now_index);
+            }
+
+            is_cooking_map = false;
+        }
+         */
+
+    }
+    struct Cel
+    {
+        public int uid;
+        public  int w;
+        public int x;
+        public int y;//w x y
+        public int t;//w x y
+        public int pbuid;//이전에 방문한 노드의 블록 uid
+        public int pi;//이전에 방문한 노드의 x (블록 범위안) x y -> 1차원 배열 인덱스로
+        public int si;
+        
+        public int suid;
+        public int spi;//start 이전의 위치
+        public int spuid;
+
+        public static int Size()
+        {
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Cel)); ;//index + x + y
+            return size;
+        }
+    };
+    struct Finish
+    {
+        public int flag;
+        public static int Size()
+        {
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Finish)); ;//index + x + y
+            return size;
+        }
+    };
+    struct Path_Node
+    {
+        public int i;
+        public  int uid;
+        public static int Size()
+        {
+            int size = System.Runtime.InteropServices.Marshal.SizeOf(typeof(Path_Node)); ;//index + x + y
+            return size;
+        }
+    };
+    W[] _gpu_thread_list = new W[] { new W(50, 1, 1), new W(10, 10, 1), new W(25, 10, 1), new W(50, 10, 1), new W(50, 20, 1), new W(50, 40, 1), new W(100, 40, 1), new W(200, 40, 1) };//실행 셀수 인데 걍 인덱스 1즉 100개짜리만 사용하자
+    int _gpu_thread_index = 0;
+    //50 - 0
+    //100 - 1
+    //250 - 2
+    //500 - 3
+    //1000 - 4
+    //2000 - 5
+    //4000 - 6
+    //8000 - 7
+    ComputeBuffer _Gpu_Buffer_Finish = null;//결과 찾았는지 확인하는 플래그 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_Execute = null;//Execute_info 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_P = null;//Path_w 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_Path = null;//Path_w 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_E = null;//Path_w 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_B = null;//Block_W 전용 버퍼
+    ComputeBuffer _Gpu_Buffer_BD = null; // Block_Data 전용 버퍼
+    ComputeBuffer _GPU_Buffer_arr = null;//Heap
+    ComputeBuffer _Gpu_Buffer_outer = null;//heap결과 전용 버퍼
+    int[] si;
+    int[] ei;
+
+    int[] sbi;
+    int[] ebi;
+    string stag = null;
+
+    Block_W[] block_buf;
+
+    Cel[]  outer;//101개의 힙에서 4방향을 가져와서하니까
+    List<Cel> BGPQ = new List<Cel>();
+
+    void print_cel(Cel[] Block)
+    {
+        //return;//디버깅 할거면 여기 지워라
+        string ss = "";
+        for (int i = 0; i < Buf_Size; ++i)
+        {
+
+
+            ss += "{"+Block[i].w.ToString()+":" + Block[i].x.ToString() + ":" + Block[i].y.ToString() + "/"+ Block[i].uid.ToString()+":"+ Block[i].t.ToString()+":"+ Block[i].pi.ToString() + "} ";
+            //ss += "{" + Block[i].uid.ToString() + ":" + Block[i].x.ToString() + ":" + Block[i].y.ToString()+ "}   ";
+        }
+
+        ss += "\n";
+        Debug.Log(ss);
+    }
+    public class comp : IComparer
+    {
+        int IComparer.Compare(object xx, object yy)
+        {
+            Cel x = (Cel)xx;
+            Cel y = (Cel)yy;
+            if (x.w == -1)//-1은 변경되지않게 위치가
+            {
+                return -1;
+            }
+            if (y.w == -1)//-1은 변경되지않게 위치가
+            {
+                return 1;
+            }
+            if (x.w == 0)
+            {
+                return 1;
+            }
+            if (y.w == 0)
+            {
+                return -1;
+            }
+            if (x.w > y.w)
+            {
+                return 1;
+            }
+            if (x.w == y.w)
+            {
+                return 0;
+            }
+            if (x.w < y.w)
+            {
+                return -1;
+            }
+            return   y.w- x.w;
+        }
+    }
+    int BGPQ_Count = 0;
+    IComparer comper = new comp();
+    int Get_Uid(int x, int y)
+    {
+        int res = 0;
+        int bx = x / 10;
+        int by = y / 10;
+
+
+        res = ((by * 100) + bx) + 1;
+        return res;
+
+    }
+    void Clear_BGPQ()
+    {
+        BGPQ.Clear();
+        BGPQ.Add(new Cel());
+        BGPQ_Count = BGPQ.Count;
+    }
+    void print_heap()
+    {
+       //return;
+        Debug.Log("----heap S-----");
+        string ssss = "";
+        for (int i = 1; i < BGPQ.Count; ++i)
+        {
+            if(i >= BGPQ_Count)
+            {
+                Debug.Log("------M------");
+            }
+            
+            // Debug.Log("H : "+i+" ] ");
+            if(BGPQ[i].w <= 0)
+            {
+                Debug.Log("힙 빈공간");
+            }
+            else
+            {
+                ssss += BGPQ[i].w.ToString() + " ";
+                //print_cel(BGPQ[i]);
+            }
+           
+            
+        }
+        Debug.Log(ssss);
+        Debug.Log("----heap E-----");
+    }
  
- void Heapify(int i, bool ins = false)
- {
+  
+   
+   
+  
+   
+    void Heapify(int i, bool ins = false)
+    {
         if (ins)
         {
 
@@ -410,9 +989,9 @@ void Clear_BGPQ()
 
             }
         }
- }
- int push(Cel ln)
- {
+    }
+    int push(Cel ln)
+    {
         if (ln.w == 0)
             return BGPQ_Count;
 
@@ -426,9 +1005,9 @@ void Clear_BGPQ()
         Heapify(BGPQ_Count - 1, true);
         
         return BGPQ_Count;
- }
- int pop()
- {
+    }
+    int pop()
+    {
 
         if (BGPQ_Count > 1)
         {
@@ -443,20 +1022,20 @@ void Clear_BGPQ()
             Heapify(1);
         }
         return BGPQ_Count;
- }
- const int Buf_Size = 101;
- const int Block_Buf_Size = 900;
- struct Block_Wrap
- {
+    }
+    const int Buf_Size = 101;
+    const int Block_Buf_Size = 900;
+    struct Block_Wrap
+    {
         public int uid;
         public Block My_Block;
- }
+    }
 
- HashSet<int> Block_uid_Hash = new HashSet<int>();//블록 버퍼에 들어간 uid목록
- LinkedList<Block_Wrap> Block_Buf = new LinkedList<Block_Wrap>();//블록 버퍼
+    HashSet<int> Block_uid_Hash = new HashSet<int>();//블록 버퍼에 들어간 uid목록
+    LinkedList<Block_Wrap> Block_Buf = new LinkedList<Block_Wrap>();//블록 버퍼
 
- Block_Data[] Block_Serialize()
- {
+    Block_Data[] Block_Serialize()
+    {
         Block_Data[] res = new Block_Data[Block_Buf_Size * (Buf_Size + 2)];
         // var now = Block_Buf.First;
         string sss = "";
@@ -482,10 +1061,14 @@ void Clear_BGPQ()
         }
         //Debug.LogWarning("ser : "+i+":"+sss+" / "+ i);
         return res;
- }
- void Block_Buf_Add(int ln)
- {
+    }
+    void Block_Buf_Add(int ln)
+    {
        // Debug.Log("블록 버퍼 추가");
+        if(!D.ContainsKey(ln))
+        {
+            return;
+        }
         if(ln == 0)//빈 블록이다
         {
             return;
@@ -504,7 +1087,7 @@ void Clear_BGPQ()
         }
         if(Block_Buf.Count >= Block_Buf_Size - 1)
         {
-           // Debug.Log("블록 버퍼 용량 꽉차서 앞의 요소 삭제함");
+            Debug.Log("F : 블록 버퍼 용량 꽉차서 앞의 요소 삭제함");
             
             Block_uid_Hash.Remove(Block_Buf.First.Value.uid);
             Block_Buf.RemoveFirst();
@@ -522,20 +1105,20 @@ void Clear_BGPQ()
 
            // Debug.Log("블록 버퍼 추가 : " + Block_Buf.Last.Value.uid + " / " + Block_Buf.Count);
         }
-    
- }
- int sid = -1;
- int eid = -1;
- int Get_Block_Pos(int xx, int yy)//블록 좌표 x,y축을 구하고 이를 1차원 배열의 인덱스로 변경
- {
+       
+    }
+    int sid = -1;
+    int eid = -1;
+    int Get_Block_Pos(int xx, int yy)//블록 좌표 x,y축을 구하고 이를 1차원 배열의 인덱스로 변경
+    {
         int bx = xx % 10;
         int by = yy % 10;
 
         int res = (by * 10) + bx;
         return res;
- }
- public void Get_Path(Vector2 _s, Vector2 _e,nav_controller nav)//실제 길찾기 시작
- {
+    }
+    public void Get_Path(Vector2 _s, Vector2 _e,nav_controller nav)//실제 길찾기 시작
+    {
        // D.Clear();
         Link.Clear();
         Clear_BGPQ();
@@ -590,9 +1173,9 @@ void Clear_BGPQ()
 
          _Gpu_Buffer_P = new ComputeBuffer(Cel.Size() * Buf_Size, Cel.Size());//vector3 4*3
 
-     
-          
-            _Gpu_Buffer_outer = new ComputeBuffer((Cel.Size() * Buf_Size* Buf_Size), Cel.Size());//vector3 4*3
+        _Gpu_Buffer_Path = new ComputeBuffer(Path_Node.Size() * Buf_Size * Buf_Size, Path_Node.Size());
+
+        _Gpu_Buffer_outer = new ComputeBuffer((Cel.Size() * Buf_Size* Buf_Size), Cel.Size());//vector3 4*3
 
       
 
@@ -618,6 +1201,10 @@ void Clear_BGPQ()
 
 
         Execute_Info[] execute_info = new Execute_Info[Buf_Size];
+        for(int i =0; i < execute_info.Length; ++i)
+        {
+            execute_info[i].fin = 0;
+        }
 
         _Gpu_Buffer_Execute.SetData(execute_info);
         _Gpu_compute.SetBuffer(Kernel, "info", _Gpu_Buffer_Execute);
@@ -626,26 +1213,29 @@ void Clear_BGPQ()
 
         Block_Wrap first_Block_Wrap = new Block_Wrap();
         
-        first_Block_Wrap.uid = sid;
-        first_Block_Wrap.My_Block = D[sid];
-        Block_uid_Hash.Add(sid);
-        Block_Buf.AddFirst(new LinkedListNode<Block_Wrap>(first_Block_Wrap));
-
+       // first_Block_Wrap.uid = sid;
+        //first_Block_Wrap.My_Block = D[sid];
+       // Block_uid_Hash.Add(sid);
+        Block_Buf_Add(sid);
+        Block_Buf_Add(sid+1);
+        Block_Buf_Add(sid-1);
+        Block_Buf_Add(sid+100);
+        Block_Buf_Add(sid-100);
 
         Debug.Log("시작 블록 : "+ D[sid].uid);
         // Block_Buf_Add(stag);
 
-        Block_W tm =  new Block_W();
+         Block_W tm =  new Block_W();
 
-        tm.uid = Block_Buf.First.Value.My_Block.uid;
-        tm.sx = Block_Buf.First.Value.My_Block.sx;
-        tm.sy = Block_Buf.First.Value.My_Block.sy;
+         tm.uid = Block_Buf.First.Value.My_Block.uid;
+          tm.sx = Block_Buf.First.Value.My_Block.sx;
+         tm.sy = Block_Buf.First.Value.My_Block.sy;
 
-        block_buf[2] = tm;//시작 블록을 넣어 저장
+           block_buf[2] = tm;//시작 블록을 넣어 저장
 
-   
-       // print_block(Block_Buf.First.Value.My_Block);
 
+        // print_block(Block_Buf.First.Value.My_Block);
+       
         _Gpu_Buffer_B.SetData(block_buf);//블록 버퍼에 해당 블록저장
 
         var Block_data = Block_Serialize();
@@ -666,11 +1256,14 @@ void Clear_BGPQ()
     
         ln[1].x =  si[0];
         ln[1].y = si[1];
-        ln[1].uid = tm.uid;
-        ln[1].pbuid = -1;
+        ln[1].uid = sid;
+        ln[1].pbuid = 0;
         ln[1].pi = -1;
+        ln[1].spuid = 0;
+        ln[1].spi = -1;
 
-        stag = sid.ToString() + ":" + Get_Block_Pos(si[0], si[1]).ToString();
+
+    stag = sid.ToString() + ":" + Get_Block_Pos(si[0], si[1]).ToString();
         if(!path_finder.Link.ContainsKey(stag))
         {
             path_finder.Link.Add(stag, null);
@@ -692,7 +1285,14 @@ void Clear_BGPQ()
 
         //Pop();
         //https://cmwdexint.com/2017/12/04/computeshader-setfloats/ 배열은 이렇게 해줘야한다. 인덱스 * 4바이트 하면 hlsl에서 인덱스로 읽어짐
-
+        Path_Node[] path_ln =  new Path_Node[Buf_Size * Buf_Size];
+        for(int i =0; i < Buf_Size * Buf_Size; ++i)
+        {
+            path_ln[i].i = -1;
+            path_ln[i].uid = -1;
+        }
+        _Gpu_Buffer_Path.SetData(path_ln);
+        _Gpu_compute.SetBuffer(Kernel, "Path", _Gpu_Buffer_Path);
 
         outer = new Cel[Buf_Size * Buf_Size];
         _Gpu_Buffer_outer.SetData(outer);//블록 버퍼에 해당 블록저장
@@ -709,9 +1309,10 @@ void Clear_BGPQ()
       
         StartCoroutine(Gpu_Read(nav));
 
- }
- public void Path_Find_Fin()
- {
+    }
+    int cel_test = 0;
+    public void Path_Find_Fin()
+    {
 
         if(D.ContainsKey(eid))
         {
@@ -726,12 +1327,54 @@ void Clear_BGPQ()
           
 
             Debug.LogWarning("Fs:" + now_id + ":" + now_i  );
-            string ntag = eid.ToString() + ":" + now_i.ToString();
             string stag = s_id.ToString() + ":" + s_i.ToString();
+            string ntag = (now_id + ":" + now_i);  //eid.ToString() + ":" + now_i.ToString();
+            int dd = D[now_id].data[now_i];
+
+
+            while (ntag != stag)
+            {
+                if (ccc > 200)
+                    break;
+                ccc++;
+                Debug.LogWarning("Ss:" + ntag + " / S " + stag + " / E " + (now_id+":"+ now_i)+" / " +dd+" / "+ccc);
+                var sp = ntag.Split(':');
+                int nx_id = int.Parse(sp[0]);
+                int nx_i = int.Parse(sp[1]);
+               //print_block(D[nx_id]);
+              //  print_block(D[nx_id], 2);
+                float xx = nx_i % 10 * Spacing;
+                int yi = nx_i / 10;
+                float yy = yi * Spacing;
+                Debug.DrawLine(new Vector3(D[nx_id].sx + xx, 2f, D[nx_id].sy + yy), new Vector3(D[nx_id].sx + xx, 3f, D[nx_id].sy + yy), Color.blue, 7f);
+                ntag = D[nx_id].pid[nx_i] + ":" + D[nx_id].pi[nx_i].ToString();
+                dd = D[nx_id].data[nx_i];
+                //ntag = Link[ntag];
+            }
             //print_block(D[now_id]);
             //print_block(D[now_id], 2);
+            /*
+            while(ntag != "0:0" || ntag == null)
+            {
+                ccc++;
+                if (ccc > 200)
+                    break;
+                Debug.LogWarning("Ss:" + ntag+" / "+stag+ " / "+ccc);
+                var sp = ntag.Split(':');
+                int nx_id = int.Parse(sp[0]);
+                int nx_i = int.Parse(sp[1]);
+                print_block(D[nx_id]);
+                print_block(D[nx_id], 2);
+                float xx = nx_i % 10 * Spacing;
+                int yi = nx_i / 10;
+                float yy = yi * Spacing;
+                //Debug.DrawLine(new Vector3(D[nx_id].sx + xx, 0f, D[nx_id].sy + yy), new Vector3(D[nx_id].sx + xx, 3f, D[nx_id].sy + yy), Color.blue, 7f);
+               
+                ntag = D[nx_id].pid[nx_i] + ":" + D[nx_id].pi[nx_i].ToString();
+            }
+          */
 
-            int px_id = eid;
+            /*
             while (stag != ntag)
             {
                 ccc++;
@@ -739,7 +1382,8 @@ void Clear_BGPQ()
                 var sp = ntag.Split(':');
                 int nx_id = int.Parse(sp[0]);
                 int nx_i = int.Parse(sp[1]);
-               // print_block(D[nx_id],2);
+                print_block(D[nx_id]);
+                print_block(D[nx_id],2);
                 string nx_tag = D[nx_id].pid[nx_i].ToString() + ":" + D[nx_id].pi[nx_i].ToString();
 
                 float xx = nx_i % 10 * Spacing;
@@ -748,7 +1392,7 @@ void Clear_BGPQ()
                 float yy = yi * Spacing;
                 Debug.DrawLine(new Vector3(D[nx_id].sx + xx, 0f, D[nx_id].sy + yy), new Vector3(D[nx_id].sx + xx, 3f, D[nx_id].sy + yy), Color.blue, 7f);
 
-                //Debug.Log("T:/" + ntag + " = " + stag+" / "+ px_id+" : "+ nx_id);
+                Debug.Log("T:/" + ntag + " = " + stag+" : "+ nx_tag+" / " + px_id+" : "+ nx_id);
                 if (px_id != nx_id)
                 {
                    // nx_tag = path_finder.Link[ntag];
@@ -761,13 +1405,13 @@ void Clear_BGPQ()
                     break;
                
             }
-
+            */
 
 
 
             //print_block(use_able[now_id], 2);
-           // string tt =  D[now_id].pid[now_i] + ":" + D[now_id].pi[now_i];
-           // Debug.Log("e:/" + tt);
+            // string tt =  D[now_id].pid[now_i] + ":" + D[now_id].pi[now_i];
+            // Debug.Log("e:/" + tt);
             foreach (var now in use_able.Keys)
             {
                // print_block(use_able[now],2);
@@ -812,11 +1456,11 @@ void Clear_BGPQ()
         }
         int jj = 0;
 
- 
- }
- int frame = 0;
- public IEnumerator Gpu_Read(nav_controller nav)
- {
+    
+    }
+    int frame = 0;
+    public IEnumerator Gpu_Read(nav_controller nav)
+    {
        
         //우선순위 힙 연산만 있다. -> 우선순위의 경우 gpu에서 동기화시 락킹 해서 다른 셀의 접근을 막는방식으로 진행하는데 성능저하도 많고 단일코어에서 속도 빠른 cpu에서 처리
         //퓨리스틱을 적용한 v시간 복잡도는 gpu에서 연산한다.
@@ -847,7 +1491,7 @@ void Clear_BGPQ()
             read_BD = new Block_Data[Block_Buf_Size * (Buf_Size + 2)];
             _Gpu_Buffer_B.GetData(read_data);
 
-           
+           /*
             for (int i = 0; i < read_data.Length; ++i)
             {
                 if (read_data[i].sx != 0)
@@ -860,7 +1504,7 @@ void Clear_BGPQ()
 
 
             }
-           
+           */
 
 
             _Gpu_Buffer_Execute.GetData(Execute_Info_Read);
@@ -889,35 +1533,30 @@ void Clear_BGPQ()
                     for (int j = 0; j < outer_reader.Length; ++j)
                     {
                         //print_cel(outer_reader);
-                        if (outer_reader[j].w != 0)
-                        {
-                   
-                            string ntag = outer_reader[j].uid.ToString() + ":" + Get_Block_Pos(outer_reader[j].x, outer_reader[j].y).ToString();
-                            string ptag = outer_reader[j].pbuid.ToString() + ":" + outer_reader[j].pi.ToString();
-                            //Debug.LogWarning("B : "+ ntag+"/"+ ptag);
-                            // print_cel(outer_reader);
-                            if (!path_finder.Link.ContainsKey(ntag))
-                            {
-
-                                path_finder.Link.Add(ntag, ptag);
-                            }
-                            else
-                            {
-                                path_finder.Link[ntag] = ptag;
-                            }
-                        }
+                       
                        
                         if (outer_reader[j].t == 1)
                         {
-                            Debug.LogWarning("길찾음 : ");
+                          
                             string ntag = outer_reader[j].uid.ToString() + ":" + Get_Block_Pos(outer_reader[j].x, outer_reader[j].y).ToString();
                             string ptag = outer_reader[j].pbuid.ToString() + ":" + outer_reader[j].pi.ToString();
+                            Debug.LogWarning("길찾음 : "+ ntag+" / "+ ptag);
+                            int cel_i = (j / Buf_Size);
+                            int cel_j = j % Buf_Size;
+                            if (p_i != cel_i)
+                            {
+                                // Debug.Log("N:"+ cel_i+":"+j);
+                                My_Cel.Add(new Cel[Buf_Size]);
+                                cel_count++;
+                                p_i = cel_i;
+                            }
                             outer_reader[j].w = 0;
-                              
-                                continue;
+                          
+                            My_Cel[cel_count - 1][cel_j] = outer_reader[j];
+                            continue;
                         }
                
-                        if (!(outer_reader[j].w == 0 | outer_reader[j].w == -1))
+                        if (outer_reader[j].w >0)
                         {
                             string ntag = outer_reader[j].uid.ToString() + ":" + Get_Block_Pos(si[0], si[1]).ToString();
                             string ptag = outer_reader[j].pbuid.ToString() + ":" + outer_reader[j].pi.ToString();
@@ -940,42 +1579,37 @@ void Clear_BGPQ()
                           
                         }
                      }
-
-                    HashSet<int> test = new HashSet<int>();
-                    for(int i =0; i< My_Cel.Count; ++i)//gpu연산의 다음 노드들을 저장한 버퍼
+            Path_Node[] path_ln = new Path_Node[Buf_Size * Buf_Size];
+          
+            _Gpu_Buffer_Path.GetData(path_ln);
+           /*
+            for(int i = 0; i <= 100; ++i)
+            {
+                string ss = "";
+                bool notuse = false;
+                for (int j =0; j <=100; ++j)
+                {
+                    if (j % 10 == 0)
+                        ss += '\n';
+                    ss += path_ln[(i * 100) + j].ToString()+" ";
+                    if(path_ln[(i * 100) + j] != 0)
                     {
-                     
-                        My_Cel[i][0].w = -1;
-                        
-                        foreach(var noow in My_Cel[i])
-                        {
-                                if (!test.Contains(noow.uid))
-                                {
-                                    test.Add(noow.uid);
-                                   
-                                    if (path_finder.D.ContainsKey(noow.uid))
-                                    {
-                                        print_block(path_finder.D[noow.uid]);
-                                    }
-                                }
-                            
-                        }
-                        //Debug.Log("다음 대기열");
-                      //  print_cel(My_Cel[i]);
-                       Cel[] next_cel = My_Cel[i];
-                        for(int j =1; j < next_cel.Length; ++j)
-                        {
-                            push(next_cel[j]);
-                  
-                        }
-                        //print_heap();
+                        notuse = true;
                     }
-                    
-                 
+                }
+                if(notuse)
+                {
+                    Debug.LogWarning("P: " + i + ":" + ss);
+                }
+                  
+            }
+           */
+            //_Gpu_compute.SetBuffer(Kernel, "Path", _Gpu_Buffer_Path);
+
             _Gpu_Buffer_BD.GetData(read_BD);
          
             int ii = 0;
-            while (ii < Block_Buf_Size * (Buf_Size + 2) )
+            while (ii < Block_Buf_Size * (Buf_Size + 2) )//최대 100만
             {
                 //인덱스 10300까지있고 한블록에 0~102까지 범위를 가진다
                 int j = ii / (Buf_Size + 2);
@@ -1020,7 +1654,7 @@ void Clear_BGPQ()
                     //Debug.LogWarning(st);
                     //print_block(D[uid],2);
                     //print_block(D[uid]);
-                    print_block(D[uid]);
+                   // print_block(D[uid]);
                     
                    // Debug.Log(st);
                 }
@@ -1032,17 +1666,108 @@ void Clear_BGPQ()
                 // Debug.Log("BB:" + j + ":" + i % 100 + "       " + arr[i].data);
             }
             //print_block_all(read_BD);
+            HashSet<int> test = new HashSet<int>();
+            for (int i = 0; i < My_Cel.Count; ++i)//gpu연산의 다음 노드들을 저장한 버퍼
+            {
+
+                My_Cel[i][0].w = -1;
+                for (int j = 0; j < My_Cel[i].Length; ++j)
+                {
+
+                    //string ntag = My_Cel[i][j].uid.ToString() + ":" + Get_Block_Pos(My_Cel[i][j].x, My_Cel[i][j].y).ToString();
+                    string stag = My_Cel[i][j].suid.ToString() + ":" + My_Cel[i][j].si.ToString();
+                    if(My_Cel[i][j].t == 1)
+                    {
+                        Debug.LogWarning("-------------die--------------"+ My_Cel[i][j].pbuid+  " "+ My_Cel[i][j].pi);
+                    }
+
+                    // string ntag = My_Cel[i][j].uid.ToString() + ":" + My_Cel[i][j].pi.ToString();
+                    if (My_Cel[i][j].w > 0 || My_Cel[i][j].t == 1 )
+                    {
+                        string sstag = My_Cel[i][j].suid.ToString() + ":" + My_Cel[i][j].si.ToString();
+
+                       
+                     
+                        int now = Get_Block_Pos(My_Cel[i][j].x, My_Cel[i][j].y);
+                        int now_id = My_Cel[i][j].uid;
+                        string etag = now_id + ":" + now;
+                      
+                        string ptag = My_Cel[i][j].pbuid + ":" + My_Cel[i][j].pi;
+                        string sptag = My_Cel[i][j].spuid + ":" + My_Cel[i][j].spi;
+                        HashSet<string> visit = new HashSet<string>();
+                        int cc = 0;
+                        bool unable = false;
+                        Queue<string> path_arr = new Queue<string>();
+                        string ss = "";
+
+
+
+
+                        // string ntag = now_id + ":" + now;
+                        int cccc = 0;
+                        bool unable2 = false;
+                        List<string[]> tess = new List<string[]>();
+                        //  if (My_Cel[i][j].t < 3)
+                        // {
+                        // tess.Add(ptag);
+
+                        // ln[1].spuid = 0;
+                        // ln[1].spi = -1;
+                        //Debug.Log("P  : Sp / " + sptag + " S / " + stag + " P / " + ptag + "  E / " + etag + " T : " + My_Cel[i][j].t);
+                        string tag = now_id + ":" + ptag; // -> pb에서 시작해서 출발점오면 pb뒤에 다시 e위치 붙여줌
+                        string prev = etag;
+                        ss += etag + " ";//목적지 붙이기
+                        int pi = My_Cel[i][j].pi;
+                        int pid = My_Cel[i][j].pbuid;
+                        HashSet<string> mm = new HashSet<string>();
+                        print_block(D[My_Cel[i][j].uid], 2);
+                      
+                       
+                    }
+
+                    
+
+                    if (!test.Contains(My_Cel[i][j].suid))
+                    {
+                        test.Add(My_Cel[i][j].suid);
+
+                        if (path_finder.D.ContainsKey(My_Cel[i][j].suid))
+                        {
+
+
+                            print_block(path_finder.D[My_Cel[i][j].suid]);
+                        }
+                    }
+                    
+
+                }
+                //Debug.Log("다음 대기열");
+                //  print_cel(My_Cel[i]);
+                Cel[] next_cel = My_Cel[i];
+                for (int j = 1; j < next_cel.Length; ++j)
+                {
+                    push(next_cel[j]);
+
+                }
+                //print_heap();
+            }
+
 
             Heap[] HPU_Heap = new Heap[Buf_Size * 120];
           
 
             if (BGPQ_Count > 1)
             {
-                Debug.Log("!!!!!!!!!!다음 노드들!!!!!!!!!!");
+               // Debug.Log("!!!!!!!!!!다음 노드들!!!!!!!!!!");
               
-                Debug.Log("다음 노드 " );
-              
-              
+                //Debug.Log("다음 노드 " );
+                for (int i = 0; i < Buf_Size * Buf_Size; ++i)
+                {
+                    path_ln[i].i = -1;
+                    path_ln[i].uid = -1;
+                }
+                _Gpu_Buffer_Path.SetData(path_ln);
+
                 Finish[] _Finish = new Finish[1];
                 _Gpu_Buffer_Finish.GetData(_Finish);
                
@@ -1053,16 +1778,37 @@ void Clear_BGPQ()
 
                 _Gpu_Buffer_outer.SetData(clear_outer_reader);//다음 연산할 노드 목록 비우기
                 Debug.Log("-다음 노드-");
-                
+                HashSet<int> Block_Used = new HashSet<int>();
+                List<Cel> Next_Execute = new List<Cel>();
                 Cel[] inner = new Cel[Buf_Size];
-                for(int i = 1; i <= 100; ++i)
+                string exs = "";
+                for(int i = 1; i <= 100; )
                 {
                     if (BGPQ_Count > i)
                     {
+                        if (Block_Used.Contains(BGPQ[1].uid))//현재 같은 블록을 사용중이라 동시성 때문에 다음에 처리;
+                        {
+                          //  Debug.Log("ex : 중복!");
+                            Next_Execute.Add(BGPQ[1]);
+                            pop();//팝하고 ㄷ음번 처리때 다시 넣음
+                            continue;
+                        }
+                        else
+                        {
+                            Block_Used.Add(BGPQ[1].uid);
+                        }
+
+                        exs += BGPQ[1].uid + " ";
                         inner[i] = BGPQ[1];
                         pop();
+                        ++i;
+                    }
+                    else
+                    {
+                        break;
                     }
                 }
+                //Debug.Log("EX : A : "+ exs);
                // print_cel(inner);
                 for (int i = 1; i < inner.Length; ++i)
                 {
@@ -1070,42 +1816,64 @@ void Clear_BGPQ()
                     int myy = inner[i].y % 10;
                    
                    
-                        if (inner[i].uid != 0)//빈 블록이다
+                        if (inner[i].w != 0)//빈 블록이다
                         {
                             //Debug.LogWarning("!:" + inner[i].uid);
                             if (D[inner[i].uid].data[(myy * 10) + myx] == 0)
+                            {
                                 Block_Buf_Add(inner[i].uid);//다음에 사용할 노드의 블록을 버퍼에 넣어주고 GPU에 보내준다
+                               // Block_Buf_Add(inner[i].uid+1);//인접블록을 같이 넣어줘야 된다.
+                              //  Block_Buf_Add(inner[i].uid - 1);//인접블록을 같이 넣어줘야 된다.
+
+                              //  Block_Buf_Add(inner[i].uid + 100);//인접블록을 같이 넣어줘야 된다.
+                              //  Block_Buf_Add(inner[i].uid - 100);//인접블록을 같이 넣어줘야 된다.
+
+
+
+                            }
                             else
+                            {
                                 inner[i].w = 0;
+                            }
+                                
 
-
+                       
                         }
                     
                    
                 }
-                Debug.LogWarning("fin:" + _Finish[0].flag);
+              //  Debug.LogWarning("fin:" + _Finish[0].flag);
                 if(_Finish[0].flag == 1)
                 {
-                    Path_Find_Fin();
-                    break;
+                   // Path_Find_Fin();
+                    //break;
                 }
-                
+                Execute_Info[] execute_info = new Execute_Info[Buf_Size];
+                for (int i = 0; i < execute_info.Length; ++i)
+                {
+                    execute_info[i].fin = 0;
+                }
+                _Gpu_Buffer_Execute.SetData(execute_info);
                 // print_cel(BGPQ[1]);
                 _Gpu_Buffer_P.SetData(inner);
               
                 // Pop();
                
-                Debug.Log("다음 노드 Pop ");
+               // Debug.Log("다음 노드 Pop ");
                 // print_heap();
                 var Block_data = Block_Serialize();
                 _Gpu_Buffer_BD.SetData(Block_data);
                 //finish
-              
+                _Gpu_compute.SetBuffer(Kernel, "Path", _Gpu_Buffer_Path);
                 _Gpu_compute.SetBuffer(Kernel, "BD", _Gpu_Buffer_BD);
 
                 _Gpu_compute.SetBuffer(Kernel, "ln", _Gpu_Buffer_P);
 
-              
+                for (int i = 0; i < Next_Execute.Count; ++i)
+                {
+                    push(Next_Execute[i]);
+
+                }
                 // Block_Buf_Add();
 
 
@@ -1133,46 +1901,4 @@ void Clear_BGPQ()
 
         }
 
- }
- public void Gpu_refresh()
- {
-        
-        if (_GPU_Buffer_arr != null)
-            _GPU_Buffer_arr.Release();
-        if (_Gpu_Buffer_Execute != null)
-            _Gpu_Buffer_Execute.Release();
-        if (_Gpu_Buffer_P != null)
-            _Gpu_Buffer_P.Release();
-        if (_Gpu_Buffer_B != null)
-            _Gpu_Buffer_B.Release();
-        if (_Gpu_Buffer_BD != null)
-            _Gpu_Buffer_BD.Release();
-        if (_Gpu_Buffer_E != null)
-            _Gpu_Buffer_E.Release();
-        if (_Gpu_Buffer_Finish != null)
-            _Gpu_Buffer_Finish.Release();
-
-
-
-        if (_Gpu_Buffer_outer != null)
-            {
-                _Gpu_Buffer_outer.Release();
-                _Gpu_Buffer_outer.Dispose();
-            }
-           
-        
-        if (_GPU_Buffer_arr != null)
-            _GPU_Buffer_arr.Dispose();
-        if (_Gpu_Buffer_BD != null)
-            _Gpu_Buffer_BD.Dispose();
-        if (_Gpu_Buffer_Execute != null)
-            _Gpu_Buffer_Execute.Dispose();
-        if (_Gpu_Buffer_P != null)
-            _Gpu_Buffer_P.Dispose();
-        if (_Gpu_Buffer_B != null)
-            _Gpu_Buffer_B.Dispose();
-        if (_Gpu_Buffer_E != null)
-            _Gpu_Buffer_E.Dispose();
-        if (_Gpu_Buffer_Finish != null)
-            _Gpu_Buffer_Finish.Dispose();
- }
+    }
